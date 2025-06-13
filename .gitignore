@@ -1,0 +1,8 @@
+*
+
+!.gitignore
+!.editorconfig
+
+!go.mod
+!go.sum
+!main.go
