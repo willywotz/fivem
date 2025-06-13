@@ -2,11 +2,11 @@
 
 !.gitignore
 !.editorconfig
+!.github/**
 
 !go.mod
 !go.sum
-!main.go
 
-!.github
-!.github/workflows
-!.github/workflows/*
+!cmd
+!cmd/ishitani
+!cmd/ishitani/**
