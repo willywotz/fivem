@@ -25,7 +25,7 @@ jobs:
           # Define the application name. Replace 'your-app-name' with your actual binary name.
           APP_NAME="ishitani"
           # Define the output directory for compiled binaries
-          BUILD_DIR="./build"
+          BUILD_DIR="${GITHUB_WORKSPACE}/build"
           # Get the version from the Git tag
           VERSION=${{ steps.get_tag.outputs.TAG }}
 
@@ -63,9 +63,11 @@ jobs:
       - name: Generate SHA256 checksums
         # Create a checksum file for all built binaries. This is important for verification.
         run: |
-          cd ./build
+          cd ${GITHUB_WORKSPACE}/build
           sha256sum * > SHA256SUMS.txt
           echo "Generated SHA256SUMS.txt"
+          # List files for debugging
+          ls -la
 
       - name: Create GitHub Release and upload assets
         # Uses the official GitHub CLI to create a release and upload assets.
@@ -74,8 +76,8 @@ jobs:
         with:
           tag_name: ${{ steps.get_tag.outputs.TAG }}
           name: Release ${{ steps.get_tag.outputs.TAG }}
-          body_path: RELEASE_NOTES.md # Optional: point to a file for release notes
+          # body_path: ${{ github.workspace }}/RELEASE_NOTES.md # Full path to release notes
           draft: false # Set to true if you want to review before publishing
           prerelease: ${{ contains(steps.get_tag.outputs.TAG, '-') }} # Auto-detect prereleases (e.g., v1.0.0-beta.1)
           files: |
-            ./build/* # Upload all files in the build directory as release assets
+            ${{ github.workspace }}/build/*
