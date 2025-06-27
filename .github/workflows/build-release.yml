@@ -60,14 +60,46 @@ jobs:
             echo "Built $BUILD_DIR/$OUTPUT_NAME"
           done
 
-      - name: Generate SHA256 checksums
-        # Create a checksum file for all built binaries. This is important for verification.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Sign Binary with Cosign
         run: |
-          cd ${GITHUB_WORKSPACE}/build
-          sha256sum * > SHA256SUMS.txt
-          echo "Generated SHA256SUMS.txt"
-          # List files for debugging
-          ls -la
+          # Ensure the build directory exists
+          BUILD_DIR="${GITHUB_WORKSPACE}/build"
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "Build directory does not exist: $BUILD_DIR"
+            exit 1
+          fi
+
+          # Sign each binary in the build directory
+          for file in $BUILD_DIR/*; do
+            if [ -f "$file" ]; then
+              echo "Signing $file..."
+              cosign sign-blob "$file" --bundle cosign.bundle
+            else
+              echo "No files found in $BUILD_DIR to sign."
+            fi
+          done
+
+      - name: Verify Cosign Signature
+        run: |
+          # Ensure the build directory exists
+          BUILD_DIR="${GITHUB_WORKSPACE}/build"
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "Build directory does not exist: $BUILD_DIR"
+            exit 1
+          fi
+
+          # Verify each binary in the build directory
+          for file in $BUILD_DIR/*; do
+            if [ -f "$file" ]; then
+              echo "Verifying signature for $file..."
+              cosign verify-blob "$file" --bundle cosign.bundle
+            else
+              echo "No files found in $BUILD_DIR to verify."
+            fi
+          done
 
       - name: Create GitHub Release and upload assets
         # Uses the official GitHub CLI to create a release and upload assets.
