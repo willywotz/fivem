@@ -5,7 +5,10 @@ import (
 )
 
 func main() {
-	_ = becomeAdmin()
+	if !checkAdmin() {
+		_ = becomeAdmin()
+		return
+	}
 
 	time.Sleep(2 * time.Second) // Simulate some startup delay
 	PressAndRelease(VK_E)

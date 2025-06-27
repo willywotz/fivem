@@ -14,10 +14,6 @@ func checkAdmin() bool {
 }
 
 func becomeAdmin() error {
-	if checkAdmin() {
-		return nil // Already running as admin
-	}
-
 	verb := "runas"
 
 	exe, err := os.Executable()
