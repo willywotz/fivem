@@ -1,45 +1,141 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/go-ole/go-ole"
-	"github.com/moutend/go-wca/pkg/wca"
+	"time"
 )
 
 func main() {
-	if err := setDefaultMicrophoneVolume(1.0); err != nil {
-		fmt.Printf("Error setting default microphone volume: %v\n", err)
+	if !checkAdmin() {
+		if err := becomeAdmin(); err != nil {
+			println("Failed to elevate privileges:", err.Error())
+			println("Please run this application as an administrator.")
+			return
+		}
+
+		println("Privileges elevated. Restarting application...")
+		return
 	}
+
+	time.Sleep(2 * time.Second) // Simulate some startup delay
+	PressAndRelease(VK_E)
 }
 
-func setDefaultMicrophoneVolume(level float32) error {
-	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		return fmt.Errorf("Failed to initialize OLE: %v", err)
-	}
-	defer ole.CoUninitialize()
+// func main() {
+// 	myApp := app.New()
+// 	myWindow := myApp.NewWindow("My Fyne App")
 
-	var mmde *wca.IMMDeviceEnumerator
-	if err := wca.CoCreateInstance(wca.CLSID_MMDeviceEnumerator, 0, wca.CLSCTX_ALL, wca.IID_IMMDeviceEnumerator, &mmde); err != nil {
-		return fmt.Errorf("Failed to create MMDeviceEnumerator: %v", err)
-	}
-	defer mmde.Release()
+// 	// Set the content of your window
+// 	myWindow.SetContent(container.NewVBox(
+// 		widget.NewLabel("Hello Fyne!"),
+// 		widget.NewButton("Click me", func() {
+// 			log.Println("Button clicked!")
+// 		}),
+// 	))
 
-	var mmd *wca.IMMDevice
-	if err := mmde.GetDefaultAudioEndpoint(wca.ECapture, wca.ECommunications, &mmd); err != nil {
-		return fmt.Errorf("Failed to get default audio endpoint: %v", err)
-	}
-	defer mmd.Release()
+// 	// 1. Intercept the close button click
+// 	myWindow.SetCloseIntercept(func() {
+// 		log.Println("Close button clicked, hiding window...")
+// 		myWindow.Hide() // Hide the window instead of closing it
+// 	})
 
-	var aev *wca.IAudioEndpointVolume
-	if err := mmd.Activate(wca.IID_IAudioEndpointVolume, wca.CLSCTX_ALL, nil, &aev); err != nil {
-		return fmt.Errorf("Failed to activate audio endpoint volume: %v", err)
-	}
-	defer aev.Release()
+// 	// 2. Set up the system tray menu (desktop specific)
+// 	if desk, ok := myApp.(desktop.App); ok {
+// 		// Create a menu for the system tray
+// 		m := fyne.NewMenu("My Fyne App",
+// 			fyne.NewMenuItem("Show", func() {
+// 				myWindow.Show() // Show the window again
+// 			}),
+// 			fyne.NewMenuItem("Quit", func() {
+// 				myApp.Quit() // Explicitly quit the application
+// 			}),
+// 		)
+// 		desk.SetSystemTrayMenu(m)
 
-	if err := aev.SetMasterVolumeLevelScalar(level, nil); err != nil {
-		return fmt.Errorf("Failed to set master volume level: %v", err)
-	}
+// 		// Optionally, set a custom icon for the system tray
+// 		// desk.SetSystemTrayIcon(resource.MyCustomIcon) // Replace with your icon
+// 	}
 
-	return nil
-}
+// 	myWindow.ShowAndRun()
+// }
+
+// func main() {
+// 	// if err := setDefaultMicrophoneVolume(); err != nil {
+// 	// 	fmt.Printf("Error setting default microphone volume: %v\n", err)
+// 	// }
+
+// 	// _, err := getAudioDeviceCollection()
+// 	// if err != nil {
+// 	// 	fmt.Printf("Error getting audio device collection: %v\n", err)
+// 	// 	return
+// 	// }
+// }
+
+// func main() {
+// 	if !checkAdmin() {
+// 		fmt.Println("Not running as administrator. Attempting to elevate privileges...")
+
+// 		if err := becomeAdmin(); err != nil {
+// 			fmt.Printf("Failed to elevate privileges: %v\n", err)
+// 			fmt.Println("Please run this application as an administrator.")
+// 			return
+// 		}
+
+// 		// It's crucial to exit the current non-admin process after attempting elevation.
+// 		// The new elevated process will continue the execution.
+// 		os.Exit(0)
+// 	}
+
+// 	fmt.Println("Running as administrator! Performing administrative tasks...")
+// 	// Your administrative code here
+// 	// Example: Create a file in a protected directory
+// 	file, err := os.Create("C:\\Program Files\\MyAdminApp\\testfile.txt")
+// 	if err != nil {
+// 		fmt.Printf("Error creating file: %v\n", err)
+// 	} else {
+// 		fmt.Println("Successfully created testfile.txt in Program Files.")
+// 		file.Close()
+// 	}
+
+// 	fmt.Println("Press Enter to exit.")
+// 	fmt.Scanln()
+// }
+
+// 	a := app.New()
+
+// 	// Check if running on a desktop environment to use desktop-specific features
+// 	if desk, ok := a.Driver().(desktop.Driver); ok {
+// 		// Create a splash window (borderless)
+// 		splashWindow := desk.CreateSplashWindow()
+// 		splashWindow.Resize(fyne.NewSize(400, 200))
+
+// 		splashWindow.SetContent(widget.NewLabel("Loading..."))
+// 		splashWindow.CenterOnScreen()
+// 		splashWindow.ShowAndRun()
+
+// 		// Simulate some loading time
+// 		// time.Sleep(3 * time.Second)
+
+// 		// Close the splash window and open your main application window
+// 		// splashWindow.Close()
+
+// 		// mainWindow := a.NewWindow("My Application")
+// 		// mainWindow.SetContent(container.NewVBox(
+// 		// 	widget.NewLabel("Welcome to my Fyne app! a"),
+// 		// 	widget.NewButton("Click Me", func() {
+// 		// 		// Do something
+// 		// 	}),
+// 		// ))
+// 		// mainWindow.ShowAndRun()
+
+// 	} else {
+// 		// Fallback for non-desktop environments or if desktop features are not available
+// 		w := a.NewWindow("My Application")
+// 		w.SetContent(container.NewVBox(
+// 			widget.NewLabel("Welcome to my Fyne app! b"),
+// 			widget.NewButton("Click Me", func() {
+// 				// Do something
+// 			}),
+// 		))
+// 		w.ShowAndRun()
+// 	}
+// }
