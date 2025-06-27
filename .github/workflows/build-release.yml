@@ -27,45 +27,59 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
 
-      - name: Build and cross-compile binaries
+      - name: Install Fyne cross
         run: |
-          # Define the application name. Replace 'your-app-name' with your actual binary name.
+          go install github.com/fyne-io/fyne-cross@latest
+
+      - name: build fyne-cross
+        run: |
           APP_NAME="ishitani"
-          # Define the output directory for compiled binaries
           BUILD_DIR="${GITHUB_WORKSPACE}/build"
-          # Get the version from the Git tag
           VERSION=${{ steps.get_tag.outputs.TAG }}
 
           mkdir -p $BUILD_DIR
 
-          # Define target platforms for cross-compilation
-          PLATFORMS=(
-            # "linux/amd64"
-            # "linux/arm64"
-            "windows/amd64"
-            # "darwin/amd64"
-            # "darwin/arm64" # For Apple Silicon Macs
-          )
+          fyne-cross windows -tags $VERSION -output "$BUILD_DIR/${APP_NAME}_windows_amd64.exe" -release ./cmd/$APP_NAME
 
-          # Loop through platforms and build
-          for platform in "${PLATFORMS[@]}"; do
-            GOOS=$(echo $platform | cut -d'/' -f1)
-            GOARCH=$(echo $platform | cut -d'/' -f2)
+      # - name: Build and cross-compile binaries
+      #   run: |
+      #     # Define the application name. Replace 'your-app-name' with your actual binary name.
+      #     APP_NAME="ishitani"
+      #     # Define the output directory for compiled binaries
+      #     BUILD_DIR="${GITHUB_WORKSPACE}/build"
+      #     # Get the version from the Git tag
+      #     VERSION=${{ steps.get_tag.outputs.TAG }}
 
-            # Set output file extension based on OS
-            if [ "$GOOS" == "windows" ]; then
-              OUTPUT_NAME="${APP_NAME}_${GOOS}_${GOARCH}.exe"
-            else
-              OUTPUT_NAME="${APP_NAME}_${GOOS}_${GOARCH}"
-            fi
+      #     mkdir -p $BUILD_DIR
 
-            echo "Building for $GOOS/$GOARCH..."
-            env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=1 go build \
-              -ldflags="-X 'main.Version=${VERSION}' -s -w" \
-              -o "$BUILD_DIR/$OUTPUT_NAME" ./cmd/$APP_NAME # Adjust path to your main package if needed
+      #     # Define target platforms for cross-compilation
+      #     PLATFORMS=(
+      #       # "linux/amd64"
+      #       # "linux/arm64"
+      #       "windows/amd64"
+      #       # "darwin/amd64"
+      #       # "darwin/arm64" # For Apple Silicon Macs
+      #     )
 
-            echo "Built $BUILD_DIR/$OUTPUT_NAME"
-          done
+      #     # Loop through platforms and build
+      #     for platform in "${PLATFORMS[@]}"; do
+      #       GOOS=$(echo $platform | cut -d'/' -f1)
+      #       GOARCH=$(echo $platform | cut -d'/' -f2)
+
+      #       # Set output file extension based on OS
+      #       if [ "$GOOS" == "windows" ]; then
+      #         OUTPUT_NAME="${APP_NAME}_${GOOS}_${GOARCH}.exe"
+      #       else
+      #         OUTPUT_NAME="${APP_NAME}_${GOOS}_${GOARCH}"
+      #       fi
+
+      #       echo "Building for $GOOS/$GOARCH..."
+      #       env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=1 go build \
+      #         -ldflags="-X 'main.Version=${VERSION}' -s -w" \
+      #         -o "$BUILD_DIR/$OUTPUT_NAME" ./cmd/$APP_NAME # Adjust path to your main package if needed
+
+      #       echo "Built $BUILD_DIR/$OUTPUT_NAME"
+      #     done
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.8.1
