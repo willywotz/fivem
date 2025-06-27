@@ -5,16 +5,7 @@ import (
 )
 
 func main() {
-	if !checkAdmin() {
-		if err := becomeAdmin(); err != nil {
-			println("Failed to elevate privileges:", err.Error())
-			println("Please run this application as an administrator.")
-			return
-		}
-
-		println("Privileges elevated. Restarting application...")
-		return
-	}
+	_ = becomeAdmin()
 
 	time.Sleep(2 * time.Second) // Simulate some startup delay
 	PressAndRelease(VK_E)
