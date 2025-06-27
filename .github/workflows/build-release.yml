@@ -14,17 +14,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+
       - name: Get tag name
         id: get_tag
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: fyne prerequisites
         run: |
-          # Install Fyne prerequisites
           sudo apt-get update
-          sudo apt-get install golang gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+          sudo apt-get install gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
 
       - name: Build and cross-compile binaries
         run: |
@@ -59,7 +60,7 @@ jobs:
             fi
 
             echo "Building for $GOOS/$GOARCH..."
-            env GOOS=$GOOS GOARCH=$GOARCH go build \
+            env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=1 go build \
               -ldflags="-X 'main.Version=${VERSION}' -s -w" \
               -o "$BUILD_DIR/$OUTPUT_NAME" ./cmd/$APP_NAME # Adjust path to your main package if needed
 
