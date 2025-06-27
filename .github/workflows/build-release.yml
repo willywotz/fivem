@@ -20,6 +20,12 @@ jobs:
         id: get_tag
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: fyne prerequisites
+        run: |
+          # Install Fyne prerequisites
+          sudo apt-get update
+          sudo apt-get install golang gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+
       - name: Build and cross-compile binaries
         run: |
           # Define the application name. Replace 'your-app-name' with your actual binary name.
