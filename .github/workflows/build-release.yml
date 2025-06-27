@@ -39,7 +39,7 @@ jobs:
 
           mkdir -p $BUILD_DIR
 
-          fyne-cross windows -release -tags $VERSION -arch=amd64 -output "$BUILD_DIR/${APP_NAME}_windows_amd64.exe" ./cmd/$APP_NAME
+          fyne-cross windows -release -tags $VERSION -arch=amd64 ./cmd/$APP_NAME
 
       # - name: Build and cross-compile binaries
       #   run: |
