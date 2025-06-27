@@ -6,7 +6,6 @@ require (
 	fyne.io/fyne/v2 v2.6.1
 	github.com/go-ole/go-ole v1.3.0
 	github.com/jaypipes/ghw v0.17.0
-	github.com/moutend/go-wav v0.0.0-20170820031854-56127fbbb7ba
 	github.com/moutend/go-wca v0.3.0
 	golang.org/x/sys v0.33.0
 )
@@ -44,8 +43,8 @@ require (
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
 	golang.org/x/image v0.24.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
