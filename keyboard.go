@@ -7,6 +7,12 @@ import (
 	"unsafe"
 )
 
+var (
+	user32             = syscall.NewLazyDLL("user32.dll")
+	procMapVirtualKeyW = user32.NewProc("MapVirtualKeyW")
+	procSendInput      = user32.NewProc("SendInput")
+)
+
 // Input Types
 const (
 	INPUT_MOUSE    uint32 = 0
