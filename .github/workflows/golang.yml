@@ -25,25 +25,17 @@ jobs:
           go-version-file: 'go.mod'
           cache-dependency-path: 'go.sum'
 
-      - name: Install MinGW-w64 for cross-compilation
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
       - name: build go binary
         run: |
           BINARY_NAME="fivem-windows-amd64.exe"
           echo "Building binary: $BINARY_NAME"
 
-          WEBVIEW_GO_MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/webview/webview_go)
-          WEBVIEW2_INCLUDE_PATH="${WEBVIEW_GO_MOD_PATH}/libs/mswebview2/include"
-
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 \
-          CC=x86_64-w64-mingw32-gcc \
-          CXX=x86_64-w64-mingw32-g++ \
-          CGO_CFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-          CGO_CXXFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-          go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
           echo "Built binary size: $(du -h "$BINARY_NAME")"
 
       - name: create github release
