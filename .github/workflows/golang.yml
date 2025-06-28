@@ -24,7 +24,7 @@ jobs:
         shell: pwsh
 
       - name: Install MinGW-w64
-        run: choco install mingw-w64 -y
+        run: choco install mingw -y
         shell: pwsh
 
       - name: Set up Go
