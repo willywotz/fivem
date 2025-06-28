@@ -25,12 +25,22 @@ jobs:
           go-version-file: 'go.mod'
           cache-dependency-path: 'go.sum'
 
+      - name: Install MinGW-w64 for cross-compilation
+        # Install the necessary cross-compilation tools for Windows on Ubuntu.
+        # This provides 'x86_64-w64-mingw32-gcc' and 'x86_64-w64-mingw32-g++'.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
       - name: build go binary
         run: |
           BINARY_NAME="fivem-windows-amd64.exe"
           echo "Building binary: $BINARY_NAME"
 
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 \
+          CC=x86_64-w64-mingw32-gcc \
+          CXX=x86_64-w64-mingw32-g++ \
+          go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
           echo "Built binary size: $(du -h "$BINARY_NAME")"
 
       - name: create github release
