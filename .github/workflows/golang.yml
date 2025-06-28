@@ -26,8 +26,6 @@ jobs:
           cache-dependency-path: 'go.sum'
 
       - name: Install MinGW-w64 for cross-compilation
-        # Install the necessary cross-compilation tools for Windows on Ubuntu.
-        # This provides 'x86_64-w64-mingw32-gcc' and 'x86_64-w64-mingw32-g++'.
         run: |
           sudo apt-get update
           sudo apt-get install -y mingw-w64
