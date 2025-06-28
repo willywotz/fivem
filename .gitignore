@@ -1,12 +1,4 @@
-*
-
-!.gitignore
-!.editorconfig
-!.github/**
-
-!go.mod
-!go.sum
-
-!cmd
-!cmd/ishitani
-!cmd/ishitani/**
+/microphone
+/image
+/cmd
+/dolphin
