@@ -40,7 +40,7 @@ jobs:
           BINARY_NAME="fivem-windows-amd64.exe"
           echo "Building binary: $BINARY_NAME"
 
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w -H=windowsgui" -o "$BINARY_NAME" .
           echo "Built binary size: $(du -h "$BINARY_NAME")"
 
       - name: create github release
