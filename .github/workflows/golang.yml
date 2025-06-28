@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -17,60 +17,72 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install WebView2 Runtime
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
+          Start-Process .\MicrosoftEdgeWebview2Setup.exe -ArgumentList "/silent","/install" -Wait
+        shell: pwsh
+
+      - name: Install MinGW-w64
+        run: choco install mingw-w64 -y
+        shell: pwsh
+
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: 'go.mod'
-          # cache-dependency-path: 'go.sum'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64 libgtk-4-dev libwebkitgtk-6.0-dev
+          cache-dependency-path: 'go.sum'
 
       - name: build go binary
-        run: |
-          BINARY_NAME="fivem-windows-amd64.exe"
-          echo "Building binary: $BINARY_NAME"
+        run: go build -ldflags="-s -w -H windowsgui" -o fivem-windows-amd64.exe .
 
-          # Dynamically get the path to the webview_go module in the Go module cache
-          WEBVIEW_GO_MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/webview/webview_go)
-          echo "DEBUG: WEBVIEW_GO_MOD_PATH determined as: ${WEBVIEW_GO_MOD_PATH}"
+  # release:
+  #   runs-on: ubuntu-latest
 
-          # Check if go list returned an empty path, which would be an error
-          if [ -z "${WEBVIEW_GO_MOD_PATH}" ]; then
-            echo "Error: 'go list -m -f '{{.Dir}}' github.com/webview/webview_go' returned an empty path."
-            echo "This usually means 'github.com/webview/webview_go' is not a dependency in your go.mod"
-            echo "or 'go mod tidy' hasn't been run after adding it."
-            exit 1
-          fi
+  #   steps:
+  #     - name: build go binary
+  #       run: |
+  #         BINARY_NAME="fivem-windows-amd64.exe"
+  #         echo "Building binary: $BINARY_NAME"
 
-          # Construct the full path to the bundled WebView2 include directory
-          WEBVIEW2_INCLUDE_PATH="${WEBVIEW_GO_MOD_PATH}/libs/mswebview2/include"
-          echo "DEBUG: Calculated WEBVIEW2_INCLUDE_PATH: ${WEBVIEW2_INCLUDE_PATH}"
+  #         # Dynamically get the path to the webview_go module in the Go module cache
+  #         WEBVIEW_GO_MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/webview/webview_go)
+  #         echo "DEBUG: WEBVIEW_GO_MOD_PATH determined as: ${WEBVIEW_GO_MOD_PATH}"
 
-          # Verify if the calculated include path actually exists on the runner
-          if [ ! -d "${WEBVIEW2_INCLUDE_PATH}" ]; then
-            echo "Error: The calculated WEBVIEW2_INCLUDE_PATH does not exist at: ${WEBVIEW2_INCLUDE_PATH}"
-            echo "This suggests the 'webview_go' module was not downloaded correctly or its internal structure is unexpected."
-            echo "Please ensure your go.mod and go.sum are correct, and try running 'go mod download' locally."
-            exit 1 # Exit the step with an error
-          fi
+  #         # Check if go list returned an empty path, which would be an error
+  #         if [ -z "${WEBVIEW_GO_MOD_PATH}" ]; then
+  #           echo "Error: 'go list -m -f '{{.Dir}}' github.com/webview/webview_go' returned an empty path."
+  #           echo "This usually means 'github.com/webview/webview_go' is not a dependency in your go.mod"
+  #           echo "or 'go mod tidy' hasn't been run after adding it."
+  #           exit 1
+  #         fi
 
-          # Set CGO flags to include the WebView2 headers
-          # This is crucial for the cross-compiler to find the necessary headers bundled with webview_go.
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 \
-          CC=x86_64-w64-mingw32-gcc \
-          CXX=x86_64-w64-mingw32-g++ \
-          CGO_CFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-          CGO_CXXFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-          go build -ldflags="-s -w -H windowsgui" -o "$BINARY_NAME" .
-          echo "Built binary size: $(du -h "$BINARY_NAME")"
+  #         # Construct the full path to the bundled WebView2 include directory
+  #         WEBVIEW2_INCLUDE_PATH="${WEBVIEW_GO_MOD_PATH}/libs/mswebview2/include"
+  #         echo "DEBUG: Calculated WEBVIEW2_INCLUDE_PATH: ${WEBVIEW2_INCLUDE_PATH}"
 
-      - name: create github release
-        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: fivem-windows-amd64.exe
-          draft: false
-          prerelease: false
+  #         # Verify if the calculated include path actually exists on the runner
+  #         if [ ! -d "${WEBVIEW2_INCLUDE_PATH}" ]; then
+  #           echo "Error: The calculated WEBVIEW2_INCLUDE_PATH does not exist at: ${WEBVIEW2_INCLUDE_PATH}"
+  #           echo "This suggests the 'webview_go' module was not downloaded correctly or its internal structure is unexpected."
+  #           echo "Please ensure your go.mod and go.sum are correct, and try running 'go mod download' locally."
+  #           exit 1 # Exit the step with an error
+  #         fi
+
+  #         # Set CGO flags to include the WebView2 headers
+  #         # This is crucial for the cross-compiler to find the necessary headers bundled with webview_go.
+  #         GOOS=windows GOARCH=amd64 CGO_ENABLED=1 \
+  #         CC=x86_64-w64-mingw32-gcc \
+  #         CXX=x86_64-w64-mingw32-g++ \
+  #         CGO_CFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
+  #         CGO_CXXFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
+  #         go build -ldflags="-s -w -H windowsgui" -o "$BINARY_NAME" .
+  #         echo "Built binary size: $(du -h "$BINARY_NAME")"
+
+  #     - name: create github release
+  #       uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+  #       if: startsWith(github.ref, 'refs/tags/')
+  #       with:
+  #         files: fivem-windows-amd64.exe
+  #         draft: false
+  #         prerelease: false
