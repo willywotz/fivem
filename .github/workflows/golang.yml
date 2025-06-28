@@ -38,6 +38,9 @@ jobs:
       - name: build go binary
         run: go build -ldflags="-s -w -H windowsgui" -o fivem-windows-amd64.exe .
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
+
       - name: create github release
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         if: startsWith(github.ref, 'refs/tags/')
@@ -45,54 +48,3 @@ jobs:
           files: fivem-windows-amd64.exe
           draft: false
           prerelease: false
-
-  # release:
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: build go binary
-  #       run: |
-  #         BINARY_NAME="fivem-windows-amd64.exe"
-  #         echo "Building binary: $BINARY_NAME"
-
-  #         # Dynamically get the path to the webview_go module in the Go module cache
-  #         WEBVIEW_GO_MOD_PATH=$(go list -m -f '{{.Dir}}' github.com/webview/webview_go)
-  #         echo "DEBUG: WEBVIEW_GO_MOD_PATH determined as: ${WEBVIEW_GO_MOD_PATH}"
-
-  #         # Check if go list returned an empty path, which would be an error
-  #         if [ -z "${WEBVIEW_GO_MOD_PATH}" ]; then
-  #           echo "Error: 'go list -m -f '{{.Dir}}' github.com/webview/webview_go' returned an empty path."
-  #           echo "This usually means 'github.com/webview/webview_go' is not a dependency in your go.mod"
-  #           echo "or 'go mod tidy' hasn't been run after adding it."
-  #           exit 1
-  #         fi
-
-  #         # Construct the full path to the bundled WebView2 include directory
-  #         WEBVIEW2_INCLUDE_PATH="${WEBVIEW_GO_MOD_PATH}/libs/mswebview2/include"
-  #         echo "DEBUG: Calculated WEBVIEW2_INCLUDE_PATH: ${WEBVIEW2_INCLUDE_PATH}"
-
-  #         # Verify if the calculated include path actually exists on the runner
-  #         if [ ! -d "${WEBVIEW2_INCLUDE_PATH}" ]; then
-  #           echo "Error: The calculated WEBVIEW2_INCLUDE_PATH does not exist at: ${WEBVIEW2_INCLUDE_PATH}"
-  #           echo "This suggests the 'webview_go' module was not downloaded correctly or its internal structure is unexpected."
-  #           echo "Please ensure your go.mod and go.sum are correct, and try running 'go mod download' locally."
-  #           exit 1 # Exit the step with an error
-  #         fi
-
-  #         # Set CGO flags to include the WebView2 headers
-  #         # This is crucial for the cross-compiler to find the necessary headers bundled with webview_go.
-  #         GOOS=windows GOARCH=amd64 CGO_ENABLED=1 \
-  #         CC=x86_64-w64-mingw32-gcc \
-  #         CXX=x86_64-w64-mingw32-g++ \
-  #         CGO_CFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-  #         CGO_CXXFLAGS="-I${WEBVIEW2_INCLUDE_PATH}" \
-  #         go build -ldflags="-s -w -H windowsgui" -o "$BINARY_NAME" .
-  #         echo "Built binary size: $(du -h "$BINARY_NAME")"
-
-      # - name: create github release
-      #   uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
-      #   if: startsWith(github.ref, 'refs/tags/')
-      #   with:
-      #     files: fivem-windows-amd64.exe
-      #     draft: false
-      #     prerelease: false
