@@ -29,6 +29,11 @@ jobs:
           go-version-file: 'go.mod'
           cache-dependency-path: 'go.sum'
 
+      - name: install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc
+
       # - name: build
       #   run: GOOS=windows GOARCH=amd64 go build -v -ldflags "-H=windowsgui" -o fivem-windows-amd64.exe .
 
