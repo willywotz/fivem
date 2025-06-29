@@ -19,7 +19,12 @@ const html = `
 </div>
 
 <script>
-	document.getElementById("build-version").textContent = window.getBuildVersion();
+window.getBuildVersion().then(version => {
+	document.getElementById("build-version").textContent = version;
+}).catch(error => {
+	alert("Error fetching build version: " + error);
+	document.getElementById("build-version").textContent = "unknown";
+});
 </script>
 
 <label for="audio-input">Select Audio Input Device:</label><br />
