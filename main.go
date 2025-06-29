@@ -10,7 +10,18 @@ import (
 	webview "github.com/webview/webview_go"
 )
 
+var buildVersion string
+
 const html = `
+<div style="text-align: center; margin-top: 20px;">
+	<h1>fivem</h1>
+	<p>Build Version: <span id="build-version"></span></p>
+</div>
+
+<script>
+	document.getElementById("build-version").textContent = window.getBuildVersion();
+</script>
+
 <label for="audio-input">Select Audio Input Device:</label><br />
 <select id="audio-input"></select><br />
 <label for="volume-slider">Volume:</label><br />
@@ -132,6 +143,13 @@ func main() {
 
 	w.SetTitle("fivem")
 	w.SetSize(480, 320, webview.HintNone)
+
+	_ = w.Bind("getBuildVersion", func() string {
+		if buildVersion == "" {
+			return "unknown"
+		}
+		return buildVersion
+	})
 
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {
 		devices, err := getAudioInputDevices()

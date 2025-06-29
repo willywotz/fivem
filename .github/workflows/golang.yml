@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
 
     steps:
@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: 'go.sum'
 
       - name: build go binary
-        run: go build -ldflags="-s -w -H windowsgui" -o fivem-windows-amd64.exe .
+        run: go build -ldflags="-s -w -H windowsgui -X 'main.buildVersion=${GITHUB_REF#/ref/tags/}'" -o fivem-windows-amd64.exe .
 
       - name: create github release
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2

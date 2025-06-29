@@ -38,20 +38,13 @@ func becomeAdmin() error {
 	cwdPtr, _ := syscall.UTF16PtrFromString(cwd)
 	argPtr, _ := syscall.UTF16PtrFromString(args)
 
-	var showCmd int32 = 0 // SW_HIDE shows the window normally
-
-	// err = windows.ShellExecute(0, verbPtr, exePtr, argPtr, cwdPtr, showCmd)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to execute ShellExecute: %w", err)
-	// }
-
 	_, _, err = procShellExecuteW.Call(
 		uintptr(0),                       // hwnd
 		uintptr(unsafe.Pointer(verbPtr)), // lpOperation
 		uintptr(unsafe.Pointer(exePtr)),  // lpFile
 		uintptr(unsafe.Pointer(argPtr)),  // lpParameters
 		uintptr(unsafe.Pointer(cwdPtr)),  // lpDirectory
-		uintptr(showCmd),                 // nShowCmd
+		uintptr(0),                       // nShowCmd SW_HIDE
 	)
 	if err != nil && err != syscall.Errno(0) /* ERROR_SUCCESS */ {
 		return fmt.Errorf("failed to execute ShellExecute: %w", err)
