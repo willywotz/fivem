@@ -1,16 +1,30 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-ole/go-ole"
+	"github.com/hashicorp/go-version"
 	"github.com/moutend/go-wca/pkg/wca"
 	webview "github.com/webview/webview_go"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/debug"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
-var buildVersion string
+var buildVersion string = "v0"
 
 const html = `
 <div style="text-align: center; margin-top: 20px;">
@@ -21,9 +35,6 @@ const html = `
 <script>
 window.getBuildVersion().then(version => {
 	document.getElementById("build-version").textContent = version;
-}).catch(error => {
-	alert("Error fetching build version: " + error);
-	document.getElementById("build-version").textContent = "unknown";
 });
 </script>
 
@@ -137,12 +148,30 @@ type IncrementResult struct {
 }
 
 func main() {
+	fmt.Printf("fivem started. version: %s\n", buildVersion)
+
+	if b, err := handleAutoUpdate(); err != nil {
+		fmt.Printf("Error handling auto update: %v\n", err)
+	} else if b {
+		fmt.Println("Auto update handled successfully, exiting.")
+		return
+	}
+
+	if inService, _ := svc.IsWindowsService(); inService {
+		runService(svcName, false)
+		return
+	}
+
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		fmt.Printf("Failed to initialize OLE: %v", err)
 		return
 	}
 	defer ole.CoUninitialize()
 
+	ui()
+}
+
+func ui() {
 	w := webview.New(false)
 	defer w.Destroy()
 
@@ -235,6 +264,215 @@ func main() {
 
 	w.SetHtml(html)
 	w.Run()
+}
+
+var elog debug.Log
+
+var svcName = "FiveM Service"
+
+func runService(name string, isDebug bool) {
+	var err error
+	if isDebug {
+		elog = debug.New(name)
+	} else {
+		elog, err = eventlog.Open(name)
+		if err != nil {
+			return
+		}
+	}
+	defer elog.Close()
+
+	_ = elog.Info(1, fmt.Sprintf("starting %s service, version: %s", name, buildVersion))
+	run := svc.Run
+	if isDebug {
+		run = debug.Run
+	}
+	err = run(name, &exampleService{})
+	if err != nil {
+		_ = elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		return
+	}
+	_ = elog.Info(1, fmt.Sprintf("%s service stopped", name))
+}
+
+type exampleService struct{}
+
+func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	changes <- svc.Status{State: svc.StartPending}
+	fasttick := time.Tick(500 * time.Millisecond)
+	slowtick := time.Tick(2 * time.Second)
+	tick := fasttick
+	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+loop:
+	for {
+		select {
+		case <-tick:
+			beep()
+			_ = elog.Info(1, "beep")
+		case c := <-r:
+			switch c.Cmd {
+			case svc.Interrogate:
+				changes <- c.CurrentStatus
+				// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+				time.Sleep(100 * time.Millisecond)
+				changes <- c.CurrentStatus
+			case svc.Stop, svc.Shutdown:
+				// golang.org/x/sys/windows/svc.TestExample is verifying this output.
+				testOutput := strings.Join(args, "-")
+				testOutput += fmt.Sprintf("-%d", c.Context)
+				_ = elog.Info(1, testOutput)
+				break loop
+			case svc.Pause:
+				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
+				tick = slowtick
+			case svc.Continue:
+				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+				tick = fasttick
+			default:
+				_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+			}
+		}
+	}
+	changes <- svc.Status{State: svc.StopPending}
+	return
+}
+
+var beepFunc = syscall.MustLoadDLL("user32.dll").MustFindProc("MessageBeep")
+
+func beep() {
+	_, _, _ = beepFunc.Call(0xffffffff)
+}
+
+func startService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = m.Disconnect()
+	}()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer s.Close()
+	err = s.Start("is", "manual-started")
+	if err != nil {
+		return fmt.Errorf("could not start service: %v", err)
+	}
+	return nil
+}
+
+func controlService(name string, c svc.Cmd, to svc.State) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = m.Disconnect()
+	}()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer s.Close()
+	status, err := s.Control(c)
+	if err != nil {
+		return fmt.Errorf("could not send control=%d: %v", c, err)
+	}
+	timeout := time.Now().Add(10 * time.Second)
+	for status.State != to {
+		if timeout.Before(time.Now()) {
+			return fmt.Errorf("timeout waiting for service to go to state=%d", to)
+		}
+		time.Sleep(300 * time.Millisecond)
+		status, err = s.Query()
+		if err != nil {
+			return fmt.Errorf("could not retrieve service status: %v", err)
+		}
+	}
+	return nil
+}
+
+func exePath() (string, error) {
+	prog := os.Args[0]
+	p, err := filepath.Abs(prog)
+	if err != nil {
+		return "", err
+	}
+	fi, err := os.Stat(p)
+	if err == nil {
+		if !fi.Mode().IsDir() {
+			return p, nil
+		}
+		return "", fmt.Errorf("%s is directory", p)
+	}
+	if filepath.Ext(p) == "" {
+		p += ".exe"
+		fi, err := os.Stat(p)
+		if err == nil {
+			if !fi.Mode().IsDir() {
+				return p, nil
+			}
+			return "", fmt.Errorf("%s is directory", p)
+		}
+	}
+	return "", err
+}
+
+func installService(name, desc string) error {
+	exepath, err := exePath()
+	if err != nil {
+		return err
+	}
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = m.Disconnect()
+	}()
+	s, err := m.OpenService(name)
+	if err == nil {
+		s.Close()
+		return fmt.Errorf("service %s already exists", name)
+	}
+	s, err = m.CreateService(name, exepath, mgr.Config{DisplayName: desc}, "is", "auto-started")
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
+	if err != nil {
+		_ = s.Delete()
+		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+func removeService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = m.Disconnect()
+	}()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("service %s is not installed", name)
+	}
+	defer s.Close()
+	err = s.Delete()
+	if err != nil {
+		return err
+	}
+	err = eventlog.Remove(name)
+	if err != nil {
+		return fmt.Errorf("RemoveEventLogSource() failed: %w", err)
+	}
+	return nil
 }
 
 type AudioDevice struct {
@@ -381,4 +619,141 @@ func setAudioVolume(endpointId string, volumeLevel float32) error {
 	}
 
 	return nil
+}
+
+type Release struct {
+	Version     string `json:"version"`
+	DownloadURL string `json:"download_url"`
+}
+
+func getLatestRelease() (*Release, error) {
+	url := "https://api.github.com/repos/willywotz/fivem/releases/latest"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch latest release: received status code %d", resp.StatusCode)
+	}
+
+	var data struct {
+		TagName string `json:"tag_name"`
+
+		Assets []struct {
+			Name string `json:"name"`
+			URL  string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to decode latest release response: %w", err)
+	}
+	if data.TagName == "" {
+		return nil, fmt.Errorf("latest release does not have a tag name")
+	}
+	if len(data.Assets) == 0 {
+		return nil, fmt.Errorf("latest release does not have any assets")
+	}
+
+	release := Release{
+		Version:     data.TagName,
+		DownloadURL: data.Assets[0].URL,
+	}
+
+	return &release, nil
+}
+
+func launchProcessForked(binaryFilePath string, args ...string) {
+	cmd := exec.Command(binaryFilePath, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
+	err := cmd.Start()
+	if err != nil {
+		panic(fmt.Errorf("start new process: %w", err))
+	}
+}
+
+func handleAutoUpdate() (bool, error) {
+	binaryFileName := "fivem-windows-amd64.exe"
+
+	currentExePath, err := os.Executable()
+	if err != nil {
+		return false, fmt.Errorf("Failed to get current exe path: %w", err)
+	}
+
+	currentExeName := filepath.Base(currentExePath)
+	if currentExeName != binaryFileName {
+		// This is important to avoid deleting/moving a parent process, like go run, during development/testing
+		return false, fmt.Errorf("current exe name does not match expected name: %s != %s", currentExeName, binaryFileName)
+	}
+
+	oldFilePath := filepath.Base(currentExePath) + binaryFileName + ".old"
+	if _, err := os.Stat(oldFilePath); err == nil {
+		_ = os.Remove(oldFilePath)
+	}
+
+	release, err := getLatestRelease()
+	if err != nil {
+		return false, fmt.Errorf("Failed to get latest release: %w", err)
+	}
+
+	v1, _ := version.NewVersion(buildVersion)
+	v2, _ := version.NewVersion(release.Version)
+
+	if buildVersion == "" || !v1.LessThan(v2) {
+		return false, fmt.Errorf("Current version %s is not less than latest version %s", buildVersion, release.Version)
+	}
+
+	if inService, _ := svc.IsWindowsService(); inService {
+		_ = controlService(svcName, svc.Stop, svc.Stopped)
+	}
+
+	log.Printf("Current version: %s, Latest version: %s", buildVersion, release.Version)
+	log.Printf("Downloading latest release from %s", release.DownloadURL)
+
+	resp, err := http.Get(release.DownloadURL)
+	if err != nil {
+		return false, fmt.Errorf("Failed to download latest release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("Failed to download latest release: received status code %d", resp.StatusCode)
+	}
+
+	err = os.Rename(currentExePath, currentExePath+".old")
+	if err != nil {
+		return false, fmt.Errorf("rename current exe: %w", err)
+	}
+
+	f, err := os.Create(currentExePath)
+	if err != nil {
+		return false, fmt.Errorf("Failed to create new binary file: %w", err)
+	}
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		return false, fmt.Errorf("Failed to write new binary file: %w", err)
+	}
+
+	f.Close()
+
+	cmd := exec.Command(currentExePath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
+	if err := cmd.Start(); err != nil {
+		return false, fmt.Errorf("Failed to start new binary: %w", err)
+	}
+
+	if inService, _ := svc.IsWindowsService(); inService {
+		if err := startService(svcName); err != nil {
+			return false, fmt.Errorf("Failed to start service after update: %w", err)
+		}
+	}
+
+	return true, nil
 }
