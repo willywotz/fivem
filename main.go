@@ -234,7 +234,7 @@ func ui() {
 		}
 
 		currentEndpointId = endpointId
-		fmt.Printf("Current endpoint ID set to: %s\n", currentEndpointId)
+		// fmt.Printf("Current endpoint ID set to: %s\n", currentEndpointId)
 	})
 
 	_ = w.Bind("setVolume", func(volume int) {
@@ -248,7 +248,7 @@ func ui() {
 		}
 
 		currentVolume = float32(volume) / 100.0
-		fmt.Printf("Setting volume to %f\n", currentVolume)
+		// fmt.Printf("Setting volume to %f\n", currentVolume)
 	})
 
 	_ = w.Bind("setVolumeInterval", func(interval float32) {
@@ -262,7 +262,7 @@ func ui() {
 		}
 
 		currentVolumeInterval = interval
-		fmt.Printf("Setting volume interval to %f seconds\n", currentVolumeInterval)
+		// fmt.Printf("Setting volume interval to %f seconds\n", currentVolumeInterval)
 	})
 
 	w.SetHtml(html)
