@@ -21,8 +21,8 @@ jobs:
 
       - name: Install WebView2 Runtime
         run: |
-          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
-          Start-Process .\MicrosoftEdgeWebview2Setup.exe -ArgumentList "/silent","/install" -Wait
+          # Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
+          Start-Process .\scripts\MicrosoftEdgeWebview2Setup.exe -ArgumentList "/silent","/install" -Wait
         shell: pwsh
 
       - name: Install MinGW-w64
