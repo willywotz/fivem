@@ -33,20 +33,18 @@ var binaryFileName string = "fivem-windows-amd64.exe"
 
 func main() {
 	_ = becomeAdmin()
-
-	fmt.Printf("fivem started. version: %s\n", buildVersion)
-
-	// if err := handleAutoUpdate(); err != nil {
-	// 	log.Fatalf("Auto-update failed: %v\n", err)
-	// }
-
-	// _ = installService(svcName, "FiveM Service")
-	// _ = startService(svcName)
+	// _ = handleAutoUpdate()
 
 	// if inService, _ := svc.IsWindowsService(); inService {
 	// 	runService(svcName, false)
 	// 	return
 	// }
+
+	// _ = removeService(svcName)
+
+	// go func() { _ = installService(svcName, "FiveM Service") }()
+
+	fmt.Printf("fivem started. version: %s\n", buildVersion)
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		fmt.Printf("Failed to initialize OLE: %v", err)
@@ -911,7 +909,7 @@ loop:
 		select {
 		case <-tick:
 			beep()
-			_ = elog.Info(1, "beep")
+			// _ = elog.Info(1, "beep")
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -940,10 +938,10 @@ loop:
 	return
 }
 
-var beepFunc = syscall.MustLoadDLL("user32.dll").MustFindProc("MessageBeep")
+// var beepFunc = syscall.MustLoadDLL("user32.dll").MustFindProc("MessageBeep")
 
 func beep() {
-	_, _, _ = beepFunc.Call(0xffffffff)
+	// _ = exec.Command("powershell", "-c", "[console]::beep(500,300)").Run()
 }
 
 func startService(name string) error {
@@ -998,15 +996,6 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 }
 
 func installService(name, desc string) error {
-	userDir, _ := os.UserConfigDir()
-	rootDir := filepath.Join(userDir, "willywotz", "fivem")
-
-	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(rootDir, os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create root directory %s: %w", rootDir, err)
-		}
-	}
-
 	exepath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %w", err)
@@ -1014,6 +1003,15 @@ func installService(name, desc string) error {
 
 	if filepath.Base(exepath) != binaryFileName {
 		return fmt.Errorf("executable is already named %s", binaryFileName)
+	}
+
+	userDir, _ := os.UserConfigDir()
+	rootDir := filepath.Join(userDir, "willywotz", "fivem")
+
+	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(rootDir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create root directory %s: %w", rootDir, err)
+		}
 	}
 
 	if strings.HasPrefix(exepath, rootDir) {
@@ -1031,6 +1029,7 @@ func installService(name, desc string) error {
 			_ = currentFile.Close()
 			return fmt.Errorf("failed to copy current executable: %w", err)
 		}
+		_ = f.Sync()
 		_ = f.Close()
 		_ = currentFile.Close()
 		exepath = filepath.Join(rootDir, binaryFileName)
@@ -1058,7 +1057,7 @@ func installService(name, desc string) error {
 		_ = s.Delete()
 		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
 	}
-	return nil
+	return startService(name)
 }
 
 func removeService(name string) error {

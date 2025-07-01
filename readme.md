@@ -1,4 +1,3 @@
-go build -ldflags "-H=windowsgui" -o fivem-windows-amd64.exe .
+go build -ldflags "-s -w -H=windowsgui" -o fivem-windows-amd64.exe .
 
-go install github.com/akavel/rsrc@latest
-rsrc -arch amd64 -ico assets/icon.ico -manifest manifest.xml
+go run github.com/akavel/rsrc@latest -arch amd64 -ico scripts/icon.ico -manifest scripts/manifest.xml
