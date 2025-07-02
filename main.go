@@ -32,8 +32,8 @@ var buildVersion string = "v0"
 var binaryFileName string = "fivem-windows-amd64.exe"
 
 func main() {
-	// _ = becomeAdmin()
-	// _ = handleAutoUpdate()
+	_ = becomeAdmin()
+	_ = handleAutoUpdate()
 
 	// if inService, _ := svc.IsWindowsService(); inService {
 	// 	runService(svcName, false)
