@@ -5,3 +5,5 @@
 
 *.exe
 !MicrosoftEdgeWebview2Setup.exe
+
+.env

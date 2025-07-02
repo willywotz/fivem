@@ -32,7 +32,7 @@ var buildVersion string = "v0"
 var binaryFileName string = "fivem-windows-amd64.exe"
 
 func main() {
-	_ = becomeAdmin()
+	// _ = becomeAdmin()
 	// _ = handleAutoUpdate()
 
 	// if inService, _ := svc.IsWindowsService(); inService {
@@ -53,6 +53,8 @@ func main() {
 	defer ole.CoUninitialize()
 
 	ui()
+
+	// test()
 }
 
 const html = `
