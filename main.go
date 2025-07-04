@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-ole/go-ole"
 )
@@ -12,7 +13,17 @@ var binaryFileName string = "fivem-windows-amd64.exe"
 
 func main() {
 	_ = becomeAdmin()
-	_ = handleAutoUpdate()
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+
+		for {
+			<-ticker.C
+
+			fmt.Println("Checking for updates...")
+			_ = handleAutoUpdate()
+		}
+	}()
 
 	// if inService, _ := svc.IsWindowsService(); inService {
 	// 	runService(svcName, false)
