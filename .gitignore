@@ -9,3 +9,4 @@
 .env
 resource.syso
 *.old
+*.new
