@@ -18,11 +18,8 @@ func main() {
 	// 	return
 	// }
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	_ = becomeAdmin()
-	_ = autoUpdate(ctx)
+	_ = autoUpdate()
 
 	// _ = installService(svcName, svcDisplayName)
 	// _ = startService(svcName)
@@ -40,8 +37,8 @@ func main() {
 	// }
 }
 
-func autoUpdate(ctx context.Context) error {
+func autoUpdate() error {
 	repository := selfupdate.ParseSlug("willywotz/fivem")
-	_, err := selfupdate.UpdateSelf(ctx, buildVersion, repository)
+	_, err := selfupdate.UpdateSelf(context.Background(), buildVersion, repository)
 	return err
 }
