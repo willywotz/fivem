@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	svcName        = "FiveMToolsService"
-	svcDisplayName = "FiveM Tools Service"
+	svcName        = "FiveMTools"
+	svcDisplayName = "FiveM Tools"
 )
 
 var elog debug.Log

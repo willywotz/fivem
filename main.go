@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/creativeprojects/go-selfupdate"
 	"github.com/go-ole/go-ole"
 )
 
@@ -13,21 +13,19 @@ var buildVersion string = "v0"
 var binaryFileName string = "fivem-windows-amd64.exe"
 
 func main() {
-	_ = becomeAdmin()
-
-	updateCtx := context.Background()
-	updateCtx, onceUpdateDone := context.WithCancel(updateCtx)
-	go autoUpdate(onceUpdateDone)
-	<-updateCtx.Done()
-
 	// if inService, _ := svc.IsWindowsService(); inService {
 	// 	runService(svcName, false)
 	// 	return
 	// }
 
-	// _ = removeService(svcName)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// go func() { _ = installService(svcName, "FiveM Service") }()
+	_ = becomeAdmin()
+	_ = autoUpdate(ctx)
+
+	// _ = installService(svcName, svcDisplayName)
+	// _ = startService(svcName)
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		fmt.Printf("Failed to initialize OLE: %v", err)
@@ -36,15 +34,14 @@ func main() {
 	defer ole.CoUninitialize()
 
 	ui()
+
+	// if exe, _ := exePath(); strings.Contains(exe, "go-build") {
+	// 	removeService(svcName)
+	// }
 }
 
-func autoUpdate(onceUpdateDone context.CancelFunc) {
-	ticker := time.NewTicker(1 * time.Hour)
-
-	for {
-		fmt.Println("Checking for updates...")
-		_ = handleAutoUpdate()
-		onceUpdateDone()
-		<-ticker.C
-	}
+func autoUpdate(ctx context.Context) error {
+	repository := selfupdate.ParseSlug("willywotz/fivem")
+	_, err := selfupdate.UpdateSelf(ctx, buildVersion, repository)
+	return err
 }
