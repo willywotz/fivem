@@ -41,8 +41,6 @@ func handleAutoUpdate() error {
 	if err != nil {
 		return fmt.Errorf("failed to update self: %w", err)
 	}
-	if release.Version() != buildVersion {
-		os.Exit(0) // Exit if the version has changed
-	}
+	_ = release
 	return nil
 }
