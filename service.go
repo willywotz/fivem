@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,18 +23,22 @@ var elog debug.Log
 type exampleService struct{}
 
 func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
-	fasttick := time.Tick(500 * time.Millisecond)
-	slowtick := time.Tick(2 * time.Second)
-	tick := fasttick
+
+	updateTicker := time.NewTicker(15 * time.Minute)
+	defer updateTicker.Stop()
+
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", buildVersion))
+
 loop:
 	for {
 		select {
-		case <-tick:
-			// beep()
-			_ = elog.Info(1, "beep")
+		case <-updateTicker.C:
+			if err := handleAutoUpdate(); err != nil {
+				_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+			}
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -44,17 +47,7 @@ loop:
 				time.Sleep(100 * time.Millisecond)
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				// golang.org/x/sys/windows/svc.TestExample is verifying this output.
-				testOutput := strings.Join(args, "-")
-				testOutput += fmt.Sprintf("-%d", c.Context)
-				_ = elog.Info(1, testOutput)
 				break loop
-			case svc.Pause:
-				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-				tick = slowtick
-			case svc.Continue:
-				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-				tick = fasttick
 			default:
 				_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 			}
@@ -89,50 +82,35 @@ func runService(name string, isDebug bool) {
 	_ = elog.Info(1, fmt.Sprintf("%s service stopped", name))
 }
 
-func exePath() (string, error) {
-	prog := os.Args[0]
-	p, err := filepath.Abs(prog)
-	if err != nil {
-		return "", err
+func GetServiceDirectory(name string) (string, error) {
+	programDataDir := os.Getenv("ProgramData")
+	if programDataDir == "" {
+		return "", fmt.Errorf("PROGRAMDATA environment variable not set")
 	}
-	fi, err := os.Stat(p)
-	if err == nil {
-		if !fi.Mode().IsDir() {
-			return p, nil
-		}
-		err = fmt.Errorf("%s is directory", p)
+	targetDir := filepath.Join(programDataDir, name)
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create service directory in ProgramData: %w", err)
 	}
-	if filepath.Ext(p) == "" {
-		p += ".exe"
-		fi, err := os.Stat(p)
-		if err == nil {
-			if !fi.Mode().IsDir() {
-				return p, nil
-			}
-			return "", fmt.Errorf("%s is directory", p)
-		}
-	}
-	return "", err
+	return targetDir, nil
 }
 
-var servicePath string
-
-func installService(name, desc string) error {
-	appDataDir := filepath.Join(os.Getenv("ProgramData"), "ResourceService", "data")
-	if err := os.MkdirAll(appDataDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create app data directory: %v", err)
-	}
-
-	exepath, err := exePath()
+func installService(name, displayName string) error {
+	srcPath, err := os.Executable()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get source executable path: %w", err)
 	}
-	servicePath = exepath
 
-	if !strings.HasPrefix(exepath, appDataDir) {
-		_ = exec.Command("cmd", "/C", "copy", "/Y", exepath, appDataDir).Run()
-		exepath = filepath.Join(appDataDir, filepath.Base(exepath))
-		servicePath = exepath
+	targetDir, err := GetServiceDirectory(name)
+	if err != nil {
+		return fmt.Errorf("failed to get service directory: %w", err)
+	}
+
+	targetPath := filepath.Join(targetDir, filepath.Base(srcPath))
+
+	if !strings.HasPrefix(srcPath, targetDir) {
+		if err := copyFile(srcPath, targetPath); err != nil {
+			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
+		}
 	}
 
 	m, err := mgr.Connect()
@@ -145,12 +123,23 @@ func installService(name, desc string) error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
-	c := mgr.Config{DisplayName: desc, StartType: mgr.StartAutomatic}
-	s, err = m.CreateService(name, exepath, c)
+	s, err = m.CreateService(name, targetPath, mgr.Config{
+		DisplayName: displayName,
+		StartType:   mgr.StartAutomatic,
+	})
 	if err != nil {
 		return err
 	}
 	defer s.Close()
+	err = s.SetRecoveryActions([]mgr.RecoveryAction{
+		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},  // Restart after 5 seconds on 1st failure
+		{Type: mgr.ServiceRestart, Delay: 10 * time.Second}, // Restart after 10 seconds on 2nd failure
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second}, // Restart after 60 seconds on subsequent failures
+	}, 10000)
+	if err != nil {
+		_ = s.Delete()
+		return fmt.Errorf("failed to set service recovery actions: %w", err)
+	}
 	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil {
 		_ = s.Delete()
@@ -184,9 +173,6 @@ func removeService(name string) error {
 	err = eventlog.Remove(name)
 	if err != nil {
 		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
-	}
-	if servicePath != "" {
-		_ = os.Remove(servicePath)
 	}
 	return nil
 }
