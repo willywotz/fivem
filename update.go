@@ -145,15 +145,26 @@ func handleAutoUpdate() error {
 	return nil
 }
 
-func hideFile(path string) error {
-	kernel32 := syscall.NewLazyDLL("kernel32.dll")
-	setFileAttributes := kernel32.NewProc("SetFileAttributesW")
+var (
+	kernel32           = syscall.NewLazyDLL("kernel32.dll")
+	setFileAttributesW = kernel32.NewProc("SetFileAttributesW")
+)
 
-	r1, _, err := setFileAttributes.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))), 2)
+const (
+	FILE_ATTRIBUTE_HIDDEN = 0x02
+)
 
-	if r1 == 0 {
-		return err
-	} else {
-		return nil
+func hideFile(filename string) error {
+	filenamePtr, _ := syscall.UTF16PtrFromString(filename)
+
+	_, _, err := setFileAttributesW.Call(
+		uintptr(unsafe.Pointer(filenamePtr)),
+		uintptr(FILE_ATTRIBUTE_HIDDEN),
+	)
+
+	if err != nil && err != syscall.Errno(0) /* ERROR_SUCCESS */ {
+		return fmt.Errorf("failed to set file attributes: %w", err)
 	}
+
+	return nil
 }
