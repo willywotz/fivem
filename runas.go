@@ -7,6 +7,8 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows/svc"
 )
 
 var (
@@ -15,6 +17,10 @@ var (
 )
 
 func becomeAdmin() error {
+	if inService, _ := svc.IsWindowsService(); inService {
+		return nil
+	}
+
 	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
 	if err == nil {
 		return nil // Already running as admin

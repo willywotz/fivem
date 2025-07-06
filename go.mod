@@ -5,7 +5,6 @@ go 1.24.3
 require (
 	github.com/creativeprojects/go-selfupdate v1.5.0
 	github.com/go-ole/go-ole v1.3.0
-	github.com/hashicorp/go-version v1.7.0
 	github.com/joho/godotenv v1.5.1
 	github.com/moutend/go-wca v0.3.0
 	github.com/pion/webrtc/v4 v4.1.3
@@ -24,6 +23,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
+	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/pion/datachannel v1.5.10 // indirect
 	github.com/pion/dtls/v3 v3.0.6 // indirect
 	github.com/pion/ice/v4 v4.0.10 // indirect

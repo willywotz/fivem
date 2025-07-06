@@ -1,171 +1,42 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"syscall"
-	"unsafe"
+	"strings"
+	"time"
 
-	"github.com/hashicorp/go-version"
-	"golang.org/x/sys/windows/svc"
+	"github.com/creativeprojects/go-selfupdate"
 )
 
-type Release struct {
-	Version     string `json:"version"`
-	DownloadURL string `json:"download_url"`
-}
+func autoUpdate(ctx context.Context) error {
+	_ = handleAutoUpdate()
 
-func getLatestRelease() (*Release, error) {
-	url := "https://api.github.com/repos/willywotz/fivem/releases/latest"
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Wait for 15 minutes before checking for updates again
+				<-time.After(15 * time.Minute)
+				_ = handleAutoUpdate()
+			}
+		}
+	}()
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch latest release: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch latest release: received status code %d", resp.StatusCode)
-	}
-
-	var data struct {
-		TagName string `json:"tag_name"`
-
-		Assets []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode latest release response: %w", err)
-	}
-	if data.TagName == "" {
-		return nil, fmt.Errorf("latest release does not have a tag name")
-	}
-	if len(data.Assets) == 0 {
-		return nil, fmt.Errorf("latest release does not have any assets")
-	}
-
-	release := Release{
-		Version:     data.TagName,
-		DownloadURL: data.Assets[0].URL,
-	}
-
-	return &release, nil
+	return nil
 }
 
 func handleAutoUpdate() error {
-	currentExePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("Failed to get current exe path: %w", err)
+	if exe, _ := os.Executable(); strings.Contains(exe, "go-build") {
+		return nil // Skip auto-update if running from a go build
 	}
 
-	currentExeName := filepath.Base(currentExePath)
-	if currentExeName != binaryFileName {
-		// This is important to avoid deleting/moving a parent process, like go run, during development/testing
-		return fmt.Errorf("current exe name does not match expected name: %s != %s", currentExeName, binaryFileName)
-	}
+	fmt.Println("Checking for updates...")
 
-	oldFilePath := filepath.Base(currentExePath) + binaryFileName + ".old"
-	if _, err := os.Stat(oldFilePath); err != nil && !os.IsNotExist(err) {
-		fmt.Printf("Failed to check old file existence: %v\n", err)
-	} else if err := os.Remove(oldFilePath); err != nil {
-		fmt.Printf("Failed to remove old file: %v\n", err)
-	} else if err := hideFile(oldFilePath); err != nil {
-		fmt.Printf("Failed to hide old file: %v\n", err)
-	}
-
-	release, err := getLatestRelease()
-	if err != nil {
-		return fmt.Errorf("Failed to get latest release: %w", err)
-	}
-
-	v1, _ := version.NewVersion(buildVersion)
-	v2, _ := version.NewVersion(release.Version)
-
-	if buildVersion == "" || !v1.LessThan(v2) {
-		return fmt.Errorf("Current version %s is not less than latest version %s", buildVersion, release.Version)
-	}
-
-	if inService, _ := svc.IsWindowsService(); inService {
-		_ = controlService(svcName, svc.Stop, svc.Stopped)
-	}
-
-	log.Printf("Current version: %s, Latest version: %s", buildVersion, release.Version)
-	log.Printf("Downloading latest release from %s", release.DownloadURL)
-
-	resp, err := http.Get(release.DownloadURL)
-	if err != nil {
-		return fmt.Errorf("Failed to download latest release: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed to download latest release: received status code %d", resp.StatusCode)
-	}
-
-	err = os.Rename(currentExePath, currentExePath+".old")
-	if err != nil {
-		return fmt.Errorf("Failed to rename current exe: %w", err)
-	}
-
-	f, err := os.Create(currentExePath)
-	if err != nil {
-		return fmt.Errorf("Failed to create new binary file: %w", err)
-	}
-
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
-		return fmt.Errorf("Failed to write new binary file: %w", err)
-	}
-
-	f.Close()
-
-	cmd := exec.Command(currentExePath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
-	}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("Failed to start new binary: %w", err)
-	}
-
-	if inService, _ := svc.IsWindowsService(); inService {
-		if err := startService(svcName); err != nil {
-			return fmt.Errorf("Failed to start service after update: %w", err)
-		}
-	}
-
-	os.Exit(0)
-
-	return nil
-}
-
-var (
-	kernel32           = syscall.NewLazyDLL("kernel32.dll")
-	setFileAttributesW = kernel32.NewProc("SetFileAttributesW")
-)
-
-const (
-	FILE_ATTRIBUTE_HIDDEN = 0x02
-)
-
-func hideFile(filename string) error {
-	filenamePtr, _ := syscall.UTF16PtrFromString(filename)
-
-	_, _, err := setFileAttributesW.Call(
-		uintptr(unsafe.Pointer(filenamePtr)),
-		uintptr(FILE_ATTRIBUTE_HIDDEN),
-	)
-
-	if err != nil && err != syscall.Errno(0) /* ERROR_SUCCESS */ {
-		return fmt.Errorf("failed to set file attributes: %w", err)
-	}
-
-	return nil
+	repository := selfupdate.ParseSlug("willywotz/fivem")
+	_, err := selfupdate.UpdateSelf(context.Background(), buildVersion, repository)
+	return err
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/creativeprojects/go-selfupdate"
 	"github.com/go-ole/go-ole"
 )
 
@@ -19,7 +18,12 @@ func main() {
 	// }
 
 	_ = becomeAdmin()
-	_ = autoUpdate()
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	_ = autoUpdate(ctx)
 
 	// _ = installService(svcName, svcDisplayName)
 	// _ = startService(svcName)
@@ -35,10 +39,4 @@ func main() {
 	// if exe, _ := exePath(); strings.Contains(exe, "go-build") {
 	// 	removeService(svcName)
 	// }
-}
-
-func autoUpdate() error {
-	repository := selfupdate.ParseSlug("willywotz/fivem")
-	_, err := selfupdate.UpdateSelf(context.Background(), buildVersion, repository)
-	return err
 }
