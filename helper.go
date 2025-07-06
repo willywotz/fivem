@@ -4,14 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 )
 
-func copyFile(srcPath, targetDir string) error {
-	// Define the target executable path
-	targetPath := filepath.Join(targetDir, filepath.Base(srcPath))
-
-	// Copy the executable to the target path
+func copyFile(srcPath, targetPath string) error {
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to open source executable: %w", err)
