@@ -37,6 +37,12 @@ func handleAutoUpdate() error {
 	fmt.Println("Checking for updates...")
 
 	repository := selfupdate.ParseSlug("willywotz/fivem")
-	_, err := selfupdate.UpdateSelf(context.Background(), buildVersion, repository)
-	return err
+	release, err := selfupdate.UpdateSelf(context.Background(), buildVersion, repository)
+	if err != nil {
+		return fmt.Errorf("failed to update self: %w", err)
+	}
+	if release.Version() != buildVersion {
+		os.Exit(0) // Exit if the version has changed
+	}
+	return nil
 }
