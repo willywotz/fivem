@@ -108,7 +108,7 @@ func installService(name, displayName string) error {
 	targetPath := filepath.Join(targetDir, filepath.Base(srcPath))
 
 	if !strings.HasPrefix(srcPath, targetDir) {
-		if err := copyFile(srcPath, targetPath); err != nil {
+		if err := copyFile(srcPath, targetDir); err != nil {
 			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
 		}
 	}

@@ -27,7 +27,6 @@ func main() {
 	defer cancel()
 
 	_ = autoUpdate(ctx)
-
 	_ = installService(svcName, svcDisplayName)
 	_ = startService(svcName)
 
