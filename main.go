@@ -15,8 +15,8 @@ var binaryFileName string = "fivem-windows-amd64.exe"
 func main() {
 	_ = becomeAdmin()
 
-	ctx := context.Background()
-	updateCtx, onceUpdateDone := context.WithCancel(ctx)
+	updateCtx := context.Background()
+	updateCtx, onceUpdateDone := context.WithCancel(updateCtx)
 	go autoUpdate(onceUpdateDone)
 	<-updateCtx.Done()
 
