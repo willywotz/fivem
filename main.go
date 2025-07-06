@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -14,16 +15,10 @@ var binaryFileName string = "fivem-windows-amd64.exe"
 func main() {
 	_ = becomeAdmin()
 
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-
-		for {
-			<-ticker.C
-
-			fmt.Println("Checking for updates...")
-			_ = handleAutoUpdate()
-		}
-	}()
+	ctx := context.Background()
+	updateCtx, onceUpdateDone := context.WithCancel(ctx)
+	go autoUpdate(onceUpdateDone)
+	<-updateCtx.Done()
 
 	// if inService, _ := svc.IsWindowsService(); inService {
 	// 	runService(svcName, false)
@@ -34,8 +29,6 @@ func main() {
 
 	// go func() { _ = installService(svcName, "FiveM Service") }()
 
-	fmt.Printf("fivem started. version: %s\n", buildVersion)
-
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		fmt.Printf("Failed to initialize OLE: %v", err)
 		return
@@ -43,4 +36,15 @@ func main() {
 	defer ole.CoUninitialize()
 
 	ui()
+}
+
+func autoUpdate(onceUpdateDone context.CancelFunc) {
+	ticker := time.NewTicker(1 * time.Hour)
+
+	for {
+		fmt.Println("Checking for updates...")
+		_ = handleAutoUpdate()
+		onceUpdateDone()
+		<-ticker.C
+	}
 }
