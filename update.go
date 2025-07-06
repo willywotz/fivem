@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"unsafe"
 
@@ -67,8 +66,10 @@ func handleAutoUpdate() error {
 		return fmt.Errorf("Failed to get current exe path: %w", err)
 	}
 
-	if strings.Contains(currentExePath, "go-build") {
-		return fmt.Errorf("Current executable path contains 'go-build', skipping update check")
+	currentExeName := filepath.Base(currentExePath)
+	if currentExeName != binaryFileName {
+		// This is important to avoid deleting/moving a parent process, like go run, during development/testing
+		return fmt.Errorf("current exe name does not match expected name: %s != %s", currentExeName, binaryFileName)
 	}
 
 	oldFilePath := filepath.Base(currentExePath) + binaryFileName + ".old"
