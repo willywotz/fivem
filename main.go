@@ -10,9 +10,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 )
 
-var buildVersion string = "v0"
-
-var binaryFileName string = "fivem-windows-amd64.exe"
+var Version string = "v0"
 
 func main() {
 	if inService, _ := svc.IsWindowsService(); inService {

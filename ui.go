@@ -15,7 +15,7 @@ const html = `
 </div>
 
 <script>
-window.getBuildVersion().then(version => {
+window.getVersion().then(version => {
 	document.getElementById("build-version").textContent = version;
 });
 </script>
@@ -132,11 +132,11 @@ func ui() {
 	w.SetTitle("fivem")
 	w.SetSize(480, 320, webview.HintNone)
 
-	_ = w.Bind("getBuildVersion", func() string {
-		if buildVersion == "" {
+	_ = w.Bind("getVersion", func() string {
+		if Version == "" {
 			return "unknown"
 		}
-		return buildVersion
+		return Version
 	})
 
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {

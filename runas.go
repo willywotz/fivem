@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -29,10 +28,6 @@ func becomeAdmin() error {
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %w", err)
-	}
-
-	if filepath.Base(exe) != binaryFileName {
-		return nil
 	}
 
 	verb := "runas"
