@@ -23,5 +23,9 @@ func copyFile(srcPath, targetPath string) error {
 		return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
 	}
 
+	if err := dstFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync target executable: %w", err)
+	}
+
 	return nil
 }

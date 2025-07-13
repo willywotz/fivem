@@ -2,6 +2,7 @@
 /image
 /cmd
 /dolphin
+/mor
 
 *.exe
 !MicrosoftEdgeWebview2Setup.exe
