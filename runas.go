@@ -53,7 +53,7 @@ func becomeAdmin() error {
 		uintptr(1),                       // nShowCmd SW_NORMAL
 	)
 	if err != nil && err != syscall.Errno(0) /* ERROR_SUCCESS */ {
-		return fmt.Errorf("failed to execute ShellExecute: %w", err)
+		fmt.Fprintf(os.Stderr, "Failed to elevate privileges: %v\n", err)
 	}
 
 	os.Exit(0) // Exit the current process after starting the new one with admin privileges

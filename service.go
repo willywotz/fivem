@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/windows/svc"
@@ -61,11 +60,8 @@ func runService(name string, isDebug bool) {
 	var err error
 	if isDebug {
 		elog = debug.New(name)
-	} else {
-		elog, err = eventlog.Open(name)
-		if err != nil {
-			return
-		}
+	} else if elog, err = eventlog.Open(name); err != nil {
+		elog = debug.New(name)
 	}
 	defer elog.Close()
 
@@ -103,9 +99,9 @@ func installService(name, displayName string) error {
 		return fmt.Errorf("failed to get service directory: %w", err)
 	}
 
-	targetPath := filepath.Join(targetDir, filepath.Base(srcPath))
+	targetPath := filepath.Join(targetDir, fmt.Sprintf("%s.exe", name))
 
-	if !strings.HasPrefix(srcPath, targetDir) {
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 		if err := copyFile(srcPath, targetPath); err != nil {
 			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
 		}
@@ -138,11 +134,7 @@ func installService(name, displayName string) error {
 		_ = s.Delete()
 		return fmt.Errorf("failed to set service recovery actions: %w", err)
 	}
-	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
-	if err != nil {
-		_ = s.Delete()
-		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
-	}
+	_ = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	return nil
 }
 
@@ -168,10 +160,7 @@ func removeService(name string) error {
 	if err != nil {
 		return err
 	}
-	err = eventlog.Remove(name)
-	if err != nil {
-		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
-	}
+	_ = eventlog.Remove(name)
 	return nil
 }
 

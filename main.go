@@ -19,11 +19,10 @@ func main() {
 		return
 	}
 
-	_ = becomeAdmin()
-
-	_ = update()
-	_ = installService(svcName, svcDisplayName)
-	_ = startService(svcName)
+	fmt.Println(becomeAdmin())
+	fmt.Println(update())
+	fmt.Println(installService(svcName, svcDisplayName))
+	fmt.Println(startService(svcName))
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		fmt.Printf("Failed to initialize OLE: %v", err)
