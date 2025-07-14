@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/creativeprojects/go-selfupdate v1.5.0
 	github.com/go-ole/go-ole v1.3.0
+	github.com/josephspurrier/goversioninfo v1.5.0
 	github.com/moutend/go-wca v0.3.0
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	golang.org/x/sys v0.33.0
@@ -14,6 +15,7 @@ require (
 	code.gitea.io/sdk/gitea v0.21.0 // indirect
 	github.com/42wim/httpsig v1.2.2 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
+	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/google/go-github/v30 v30.1.0 // indirect

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-ole/go-ole"
+	_ "github.com/josephspurrier/goversioninfo"
 	"golang.org/x/sys/windows/svc"
 )
 
