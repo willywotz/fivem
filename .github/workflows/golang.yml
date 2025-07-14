@@ -46,7 +46,7 @@ jobs:
       - name: build go binary
         run: |
           go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@53cb51b8aa6b6b62ab8196e66a766ea7598c67fa -64 -file-version '${{ github.ref_name }}' -product-version '${{ github.ref_name }}'
-          go build -ldflags="-s -w -H windowsgui -X 'main.Version=${{ github.ref_name }}'" -o fivem-windows-amd64.exe .
+          go build -ldflags="-s -w -H windowsgui -X 'main.version=${{ github.ref_name }}' -X 'main.BaseURL=${{ vars.FIVEM_BASE_URL }}'" -o fivem-windows-amd64.exe .
 
       - name: upload to action artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

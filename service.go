@@ -30,13 +30,13 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	defer updateTicker.Stop()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", Version))
+	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))
 
 loop:
 	for {
 		select {
 		case <-updateTicker.C:
-			if err := handleAutoUpdate(); err != nil {
+			if err := handleUpdate(); err != nil {
 				_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
 			}
 		case c := <-r:

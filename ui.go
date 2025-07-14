@@ -133,10 +133,10 @@ func ui() {
 	w.SetSize(480, 320, webview.HintNone)
 
 	_ = w.Bind("getVersion", func() string {
-		if Version == "" {
+		if version == "" {
 			return "unknown"
 		}
-		return Version
+		return version
 	})
 
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {

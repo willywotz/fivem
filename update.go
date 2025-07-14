@@ -10,18 +10,21 @@ import (
 	"github.com/creativeprojects/go-selfupdate"
 )
 
-func autoUpdate(ctx context.Context) error {
-	_ = handleAutoUpdate()
+func update() error {
+	if exe, _ := os.Executable(); strings.Contains(exe, "go-build") {
+		return nil
+	}
+
+	if err := handleUpdate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error checking for updates: %v\n", err)
+	}
+
+	ticker := time.NewTicker(15 * time.Minute)
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				// Wait for 15 minutes before checking for updates again
-				<-time.After(15 * time.Minute)
-				_ = handleAutoUpdate()
+		for range ticker.C {
+			if err := handleUpdate(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error checking for updates: %v\n", err)
 			}
 		}
 	}()
@@ -29,18 +32,31 @@ func autoUpdate(ctx context.Context) error {
 	return nil
 }
 
-func handleAutoUpdate() error {
-	if exe, _ := os.Executable(); strings.Contains(exe, "go-build") {
-		return nil // Skip auto-update if running from a go build
-	}
-
+func handleUpdate() error {
 	fmt.Println("Checking for updates...")
 
 	ctx := context.Background()
-	repository := selfupdate.ParseSlug("willywotz/fivem")
-	_, err := selfupdate.UpdateSelf(ctx, Version, repository)
+	repository := selfupdate.ParseSlug("willywotz/idk")
+	release, err := selfupdate.UpdateSelf(ctx, version, repository)
 	if err != nil {
 		return fmt.Errorf("failed to update self: %w", err)
+	}
+
+	if release.GreaterThan(version) {
+		fmt.Printf("Updated to version %s, restarting...\n", release.Version())
+
+		exe, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("failed to get executable path: %w", err)
+		}
+
+		if _, err := os.StartProcess(exe, os.Args, &os.ProcAttr{
+			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+		}); err != nil {
+			return fmt.Errorf("failed to restart: %w", err)
+		}
+
+		os.Exit(0)
 	}
 
 	return nil

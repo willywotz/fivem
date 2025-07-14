@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -10,7 +9,9 @@ import (
 	"golang.org/x/sys/windows/svc"
 )
 
-var Version string = "v0"
+var version string = "v0"
+
+var BaseURL string = "http://localhost:8080"
 
 func main() {
 	if inService, _ := svc.IsWindowsService(); inService {
@@ -20,11 +21,7 @@ func main() {
 
 	_ = becomeAdmin()
 
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	_ = autoUpdate(ctx)
+	_ = update()
 	_ = installService(svcName, svcDisplayName)
 	_ = startService(svcName)
 
