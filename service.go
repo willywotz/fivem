@@ -219,3 +219,55 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 	}
 	return nil
 }
+
+func verifyExecuteServicePath(name string) error {
+	programDataDir := os.Getenv("ProgramData")
+	if programDataDir == "" {
+		return fmt.Errorf("PROGRAMDATA environment variable not set")
+	}
+	targetDir := filepath.Join(programDataDir, name)
+	srcPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get source executable path: %w", err)
+	}
+
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create service directory in ProgramData: %w", err)
+		}
+	}
+
+	targetPath := filepath.Join(targetDir, fmt.Sprintf("%s.exe", name))
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		if err := copyFile(srcPath, targetPath); err != nil {
+			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
+		}
+	}
+
+	m, err := mgr.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect to service manager: %w", err)
+	}
+	defer func() { _ = m.Disconnect() }()
+
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("failed to open service %s: %w", name, err)
+	}
+	defer s.Close()
+
+	config, err := s.Config()
+	if err != nil {
+		return fmt.Errorf("failed to get service config: %w", err)
+	}
+
+	if config.BinaryPathName != targetPath {
+		newConfig := config
+		newConfig.BinaryPathName = targetPath
+		if err := s.UpdateConfig(newConfig); err != nil {
+			return fmt.Errorf("failed to update service binary path: %w", err)
+		}
+	}
+
+	return nil
+}
