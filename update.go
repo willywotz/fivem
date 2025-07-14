@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/creativeprojects/go-selfupdate"
+	"golang.org/x/sys/windows/svc"
 )
 
 func update() error {
@@ -44,6 +45,11 @@ func handleUpdate() error {
 
 	if release.GreaterThan(version) {
 		fmt.Printf("Updated to version %s, restarting...\n", release.Version())
+
+		if inService, _ := svc.IsWindowsService(); inService {
+			_ = controlService(svcName, svc.Stop, svc.Stopped)
+			return nil
+		}
 
 		exe, err := os.Executable()
 		if err != nil {
