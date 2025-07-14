@@ -25,6 +25,10 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
+	if err := handleUpdate(); err != nil {
+		_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+	}
+
 	updateTicker := time.NewTicker(15 * time.Minute)
 	defer updateTicker.Stop()
 
