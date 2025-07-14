@@ -76,37 +76,7 @@ func runService(name string, isDebug bool) {
 	}
 }
 
-func GetServiceDirectory(name string) (string, error) {
-	programDataDir := os.Getenv("ProgramData")
-	if programDataDir == "" {
-		return "", fmt.Errorf("PROGRAMDATA environment variable not set")
-	}
-	targetDir := filepath.Join(programDataDir, name)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		return "", fmt.Errorf("failed to create service directory in ProgramData: %w", err)
-	}
-	return targetDir, nil
-}
-
 func installService(name, displayName string) error {
-	srcPath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get source executable path: %w", err)
-	}
-
-	targetDir, err := GetServiceDirectory(name)
-	if err != nil {
-		return fmt.Errorf("failed to get service directory: %w", err)
-	}
-
-	targetPath := filepath.Join(targetDir, fmt.Sprintf("%s.exe", name))
-
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		if err := copyFile(srcPath, targetPath); err != nil {
-			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
-		}
-	}
-
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -117,6 +87,30 @@ func installService(name, displayName string) error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
+
+	programDataDir := os.Getenv("ProgramData")
+	if programDataDir == "" {
+		return fmt.Errorf("PROGRAMDATA environment variable not set")
+	}
+	targetDir := filepath.Join(programDataDir, name)
+	srcPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get source executable path: %w", err)
+	}
+
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create service directory in ProgramData: %w", err)
+		}
+	}
+
+	targetPath := filepath.Join(targetDir, fmt.Sprintf("%s.exe", name))
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		if err := copyFile(srcPath, targetPath); err != nil {
+			return fmt.Errorf("failed to copy executable to ProgramData: %w", err)
+		}
+	}
+
 	s, err = m.CreateService(name, targetPath, mgr.Config{
 		DisplayName: displayName,
 		StartType:   mgr.StartAutomatic,
