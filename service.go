@@ -261,6 +261,7 @@ func verifyExecuteServicePath(name string) error {
 		if err := s.UpdateConfig(newConfig); err != nil {
 			return fmt.Errorf("failed to update service binary path: %w", err)
 		}
+		_ = controlService(name, svc.Stop, svc.Stopped)
 	}
 
 	return nil
