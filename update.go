@@ -20,7 +20,7 @@ func update() error {
 		fmt.Fprintf(os.Stderr, "Error checking for updates: %v\n", err)
 	}
 
-	ticker := time.NewTicker(15 * time.Minute)
+	ticker := time.NewTicker(5 * time.Minute)
 
 	go func() {
 		for range ticker.C {
@@ -47,8 +47,7 @@ func handleUpdate() error {
 		fmt.Printf("Updated to version %s, restarting...\n", release.Version())
 
 		if inService, _ := svc.IsWindowsService(); inService {
-			_ = controlService(svcName, svc.Stop, svc.Stopped)
-			return nil
+			return startService(svcName)
 		}
 
 		exe, err := os.Executable()

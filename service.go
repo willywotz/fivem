@@ -29,7 +29,7 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 		_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
 	}
 
-	updateTicker := time.NewTicker(15 * time.Minute)
+	updateTicker := time.NewTicker(5 * time.Minute)
 	defer updateTicker.Stop()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
