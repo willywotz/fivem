@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/creativeprojects/go-selfupdate"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 )
 
@@ -57,6 +59,9 @@ func handleUpdate() error {
 
 		if _, err := os.StartProcess(exe, os.Args, &os.ProcAttr{
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			Sys: &syscall.SysProcAttr{
+				CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+			},
 		}); err != nil {
 			return fmt.Errorf("failed to restart: %w", err)
 		}
