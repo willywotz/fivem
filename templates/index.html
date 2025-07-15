@@ -1,0 +1,90 @@
+<style>
+body { margin: 0; }
+</style>
+
+<div style="padding: 16px; display: flex; align-items: baseline; justify-content: space-between; background-color: #f0f0f0; border-bottom: 1px solid #ccc;">
+	<h1 style="margin: 0; padding: 0;">fivem tools</h1>
+    <span id="version">0</span>
+</div>
+
+<script>
+window.getVersion().then(version => {
+	document.getElementById("version").textContent = version;
+});
+</script>
+
+<div style="padding: 16px; display: flex; justify-content: space-between; gap: 16px;">
+    <label for="audio-input" style="display: flex; flex-direction: column; gap: 8px;">
+        <div>Select Audio Input Device: </div>
+        <select id="audio-input"></select>
+    </label>
+
+    <label for="volume-slider" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+        <div>Volume: <span id="volume-slider-value"></span></div>
+        <input type="range" id="volume-slider" min="0" max="100" value="100" style="width: 100%;" />
+    </label>
+</div>
+
+
+<script>
+	const audioInputElement = document.getElementById("audio-input");
+	const volumeSlider = document.getElementById("volume-slider");
+	const volumeSliderValue = document.getElementById("volume-slider-value");
+
+	let currentEndpointId = "";
+
+	let currentVolume = 100;
+	volumeSlider.value = currentVolume;
+	volumeSliderValue.textContent = currentVolume;
+	window.setVolume(currentVolume);
+
+	window.getAudioInputDevices().then(devices => {
+		devices.forEach(device => {
+			const option = document.createElement("option");
+			option.value = device.id;
+			option.textContent = device.name;
+			audioInputElement.appendChild(option);
+		});
+
+		devices.filter(device => device.isDefaultAudioEndpoint).forEach(device => {
+			currentEndpointId = device.id;
+			audioInputElement.value = currentEndpointId;
+			window.setVolumeEndpointId(currentEndpointId);
+		});
+	});
+
+	audioInputElement.addEventListener("change", () => {
+		currentEndpointId = audioInputElement.value;
+		window.setVolumeEndpointId(currentEndpointId);
+	});
+
+	volumeSlider.addEventListener("change", () => {
+		onVolumeChange(volumeSlider.value);
+	});
+
+	function onVolumeChange(value) {
+		if (value === "") {
+			return;
+		}
+
+		if (/^[0-9]+$/.test(`${value}`) === false) {
+			alert("Please enter a valid number.");
+			volumeSliderValue.textContent = currentVolume;
+			return;
+		}
+
+		const volume = parseInt(value, 10);
+
+		if (isNaN(volume) || volume < 0 || volume > 100) {
+			alert("Please enter a valid volume between 0 and 100.");
+			volumeSlider.value = currentVolume;
+			volumeSliderValue.textContent = currentVolume;
+			return;
+		}
+
+		currentVolume = volume;
+		volumeSlider.value = currentVolume;
+		volumeSliderValue.textContent = currentVolume;
+		window.setVolume(currentVolume);
+	}
+</script>
