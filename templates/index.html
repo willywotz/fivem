@@ -1,9 +1,9 @@
 <style>
-body { margin: 0; }
+body { margin: 0; font-size: 16px; line-height: 1.5; }
 </style>
 
-<div style="padding: 16px; display: flex; align-items: baseline; justify-content: space-between; background-color: #f0f0f0; border-bottom: 1px solid #ccc;">
-	<h1 style="margin: 0; padding: 0;">fivem tools</h1>
+<div style="padding: 1rem; display: flex; align-items: baseline; justify-content: space-between; background-color: #f0f0f0; border-bottom: 1px solid #ccc;">
+	<h1 style="margin: 0; padding: 0; font-size: 1.5rem;">fivem tools</h1>
     <span id="version">0</span>
 </div>
 
@@ -13,14 +13,14 @@ window.getVersion().then(version => {
 });
 </script>
 
-<div style="padding: 16px; display: flex; justify-content: space-between; gap: 16px;">
-    <label for="audio-input" style="display: flex; flex-direction: column; gap: 8px;">
-        <div>Select Audio Input Device: </div>
+<div style="padding: 1rem; display: flex; justify-content: space-between; gap: 1rem;">
+    <label for="audio-input" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <div>เลือกอุปกรณ์นำเสียงเข้า: </div>
         <select id="audio-input"></select>
     </label>
 
-    <label for="volume-slider" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-        <div>Volume: <span id="volume-slider-value"></span></div>
+    <label for="volume-slider" style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div>ระดับเสียง: <span id="volume-slider-value"></span>%</div>
         <input type="range" id="volume-slider" min="0" max="100" value="100" style="width: 100%;" />
     </label>
 </div>
