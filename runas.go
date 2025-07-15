@@ -16,6 +16,10 @@ var (
 )
 
 func becomeAdmin() error {
+	if exe, _ := os.Executable(); strings.Contains(exe, "go-build") {
+		return nil
+	}
+
 	if inService, _ := svc.IsWindowsService(); inService {
 		return nil
 	}

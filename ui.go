@@ -21,12 +21,7 @@ func ui() {
 	w.SetTitle("fivem")
 	w.SetSize(480, 320, webview.HintNone)
 
-	_ = w.Bind("getVersion", func() string {
-		if version == "" {
-			return "unknown"
-		}
-		return version
-	})
+	_ = w.Bind("getVersion", func() string { return version })
 
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {
 		devices, err := getAudioInputDevices()
@@ -39,21 +34,23 @@ func ui() {
 	})
 
 	var volumeMu sync.Mutex
-	var currentEndpointId string    // Store the currently selected endpoint ID
-	var currentVolume float32 = 1.0 // Default volume level (100%)
+	var currentEndpointId string
+	var currentVolume float32 = 1.0
 
 	go func() {
-		for {
+		for range time.Tick(100 * time.Millisecond) {
 			volumeMu.Lock()
-			if currentEndpointId != "" && currentVolume >= 0 && currentVolume <= 1.0 {
-				if err := setAudioVolume(currentEndpointId, currentVolume); err != nil {
-					fmt.Printf("Error setting volume: %v\n", err)
-					w.Eval(fmt.Sprintf("alert('Error setting volume: %v');", err.Error()))
-				}
-			}
+			a, b := currentEndpointId, currentVolume
 			volumeMu.Unlock()
 
-			<-time.After(100 * time.Millisecond)
+			if a == "" || b < 0 || b > 1.0 {
+				return
+			}
+
+			if err := setAudioVolume(a, b); err != nil {
+				fmt.Printf("Error setting volume: %v\n", err)
+				w.Eval(fmt.Sprintf("alert('Error setting volume: %v');", err.Error()))
+			}
 		}
 	}()
 
@@ -68,7 +65,6 @@ func ui() {
 		}
 
 		currentEndpointId = endpointId
-		// fmt.Printf("Current endpoint ID set to: %s\n", currentEndpointId)
 	})
 
 	_ = w.Bind("setVolume", func(volume int) {
@@ -82,7 +78,6 @@ func ui() {
 		}
 
 		currentVolume = float32(volume) / 100.0
-		// fmt.Printf("Setting volume to %f\n", currentVolume)
 	})
 
 	w.SetHtml(string(indexFile))
