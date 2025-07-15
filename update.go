@@ -47,7 +47,7 @@ func handleUpdate() error {
 		fmt.Printf("Updated to version %s, restarting...\n", release.Version())
 
 		if inService, _ := svc.IsWindowsService(); inService {
-			return startService(svcName)
+			os.Exit(1)
 		}
 
 		exe, err := os.Executable()
