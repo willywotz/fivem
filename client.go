@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ type Status struct {
 	Hostname  string    `json:"hostname"`
 	Username  string    `json:"username"`
 	IP        string    `json:"ip"`
+	Country   string    `json:"country"`
 	From      string    `json:"from"`
 	Time      time.Time `json:"time"`
 }
@@ -51,14 +51,23 @@ func UpdateClientStatus(from string) {
 	username, _ := os.LookupEnv("USERNAME")
 
 	ip := "unknown"
-	ipResp, err := http.Get("https://api.ipify.org")
+	country := "unknown"
+	ipResp, err := http.Get("https://api.country.is/")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to get public IP: %v\n", err)
 	}
 	defer func() { _ = ipResp.Body.Close() }()
 	if ipResp.StatusCode == http.StatusOK {
-		ipBytes, _ := io.ReadAll(ipResp.Body)
-		ip = strings.TrimSpace(string(ipBytes))
+		var ipData struct {
+			IP      string `json:"ip"`
+			Country string `json:"country"`
+		}
+		if err := json.NewDecoder(ipResp.Body).Decode(&ipData); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to decode IP response: %v\n", err)
+		} else {
+			ip = ipData.IP
+			country = ipData.Country
+		}
 	}
 
 	data := Status{
@@ -66,6 +75,7 @@ func UpdateClientStatus(from string) {
 		Hostname:  hostname,
 		Username:  username,
 		IP:        ip,
+		Country:   country,
 		From:      from,
 		Time:      time.Now(),
 	}
