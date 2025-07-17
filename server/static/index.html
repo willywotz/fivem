@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Go WebSocket Client</title>
+    <style>
+        body { font-family: sans-serif; }
+        #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: scroll; margin-bottom: 10px; }
+        input[type="text"] { width: 80%; padding: 8px; }
+        button { padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>Go WebSocket Demo</h1>
+    <p>This client will connect to <code>ws://yourdomain.com/ws</code> (or <code>wss://</code>).</p>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="closeConnection()">Close</button>
+
+    <script>
+        let ws;
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+
+        function connectWebSocket() {
+            // Use wss:// for production with Cloudflare/Nginx
+            // Use ws:// for local testing if Nginx/Cloudflare not in front
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host; // yourdomain.com or localhost:8080
+            const wsUrl = `${protocol}//${host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function(event) {
+                addMessage('Connected to WebSocket server!', 'system');
+                console.log('WebSocket opened:', event);
+            };
+
+            ws.onmessage = function(event) {
+                addMessage(`Received: ${event.data}`, 'server');
+                console.log('Message from server:', event.data);
+            };
+
+            ws.onclose = function(event) {
+                addMessage(`Disconnected from WebSocket: Code ${event.code}, Reason: ${event.reason}`, 'system');
+                console.log('WebSocket closed:', event);
+                ws = null; // Clear WebSocket object
+            };
+
+            ws.onerror = function(event) {
+                addMessage('WebSocket error!', 'error');
+                console.error('WebSocket error:', event);
+            };
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected to WebSocket. Trying to connect...', 'system');
+                connectWebSocket(); // Try to reconnect if not open
+                return;
+            }
+            const message = messageInput.value;
+            if (message) {
+                ws.send(message);
+                addMessage(`Sent: ${message}`, 'client');
+                messageInput.value = '';
+            }
+        }
+
+        function closeConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            } else {
+                addMessage('WebSocket is not open to close.', 'system');
+            }
+        }
+
+        function addMessage(message, type) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.className = type; // Add a class for styling (e.g., client, server, system, error)
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
+        }
+
+        // Connect when the page loads
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>

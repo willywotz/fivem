@@ -13,3 +13,4 @@
 resource.syso
 *.old
 *.new
+*.pem
