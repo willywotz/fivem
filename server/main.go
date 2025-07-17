@@ -17,7 +17,7 @@ type Status struct {
 	IP        string    `json:"ip"`
 	Country   string    `json:"country"`
 	From      string    `json:"from"`
-	Time      time.Time `json:"time"`
+	Time      time.Time `json:"-"`
 }
 
 func main() {
@@ -51,6 +51,7 @@ func main() {
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
+			newStatus.Time = time.Now()
 			status = append(status, newStatus)
 			w.WriteHeader(http.StatusCreated)
 			return
