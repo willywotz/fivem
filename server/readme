@@ -5,3 +5,5 @@ ln -s /root/fivem/server/server.service /etc/systemd/system/server.service
 systemctl daemon-reload
 systemctl enable server.service
 systemctl start server.service
+
+cd /root/fivem/server; systemctl stop server; git pull; rm /opt/server/server; go build -o /opt/server/server .; systemctl start server; journalctl -f -u server.service
