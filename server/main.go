@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -28,6 +29,11 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var (
+	wsConnections = make(map[*websocket.Conn]bool)
+	wsChannel     = make(chan string, 100)
+)
+
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -35,8 +41,12 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
-	defer conn.Close() // Close the connection when the function returns
+	defer func() {
+		delete(wsConnections, conn)
+		conn.Close()
+	}()
 
+	wsConnections[conn] = true
 	log.Printf("Client connected from %s", r.RemoteAddr)
 
 	// Loop to read and write messages
@@ -112,6 +122,16 @@ func main() {
 		_, _ = w.Write(htmlContent)
 	})
 
+	go func() {
+		for msg := range wsChannel {
+			for conn := range wsConnections {
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+					log.Printf("Error sending message to client: %v", err)
+				}
+			}
+		}
+	}()
+
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		statusMu.Lock()
 		defer statusMu.Unlock()
@@ -128,6 +148,13 @@ func main() {
 			newStatus.IP = r.Header.Get("Cf-Connecting-Ip")
 			newStatus.Country = r.Header.Get("Cf-Ipcountry")
 			newStatus.Time = time.Now()
+			buf := bytes.NewBuffer(nil)
+			if err := json.NewEncoder(buf).Encode(newStatus); err != nil {
+				fmt.Fprintf(os.Stderr, "[%v]: Failed to encode status data: %v\n", newStatus.Hostname, err)
+				http.Error(w, "Failed to encode status data", http.StatusInternalServerError)
+				return
+			}
+			wsChannel <- buf.String()
 			status = append(status, newStatus)
 			w.WriteHeader(http.StatusCreated)
 			return
