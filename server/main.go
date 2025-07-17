@@ -40,6 +40,7 @@ func main() {
 
 		if r.Method == http.MethodPost {
 			var newStatus Status
+			defer func() { _ = r.Body.Close() }()
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
 				fmt.Fprintf(os.Stderr, "[%v]: Failed to decode request body: %v\n", hostname, err)
