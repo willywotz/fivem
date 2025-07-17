@@ -6,6 +6,7 @@ require (
 	github.com/creativeprojects/go-selfupdate v1.5.0
 	github.com/go-ole/go-ole v1.3.0
 	github.com/josephspurrier/goversioninfo v1.5.0
+	github.com/moutend/go-hook v0.1.0
 	github.com/moutend/go-wca v0.3.0
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	golang.org/x/sys v0.33.0

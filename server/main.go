@@ -11,13 +11,15 @@ import (
 )
 
 type Status struct {
-	MachineID string    `json:"machine_id"`
-	Hostname  string    `json:"hostname"`
-	Username  string    `json:"username"`
-	IP        string    `json:"ip"`
-	Country   string    `json:"country"`
-	From      string    `json:"from"`
-	Time      time.Time `json:"time"`
+	MachineID string `json:"machine_id"`
+	Hostname  string `json:"hostname"`
+	Username  string `json:"username"`
+	IP        string `json:"ip"`
+	Country   string `json:"country"`
+	From      string `json:"from"`
+	Status    string `json:"status"`
+
+	Time time.Time `json:"time"`
 }
 
 func main() {
