@@ -29,6 +29,8 @@ var upgrader = websocket.Upgrader{
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(os.Stdout).Encode(r.Header) // Log request headers for debugging
+
 	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
