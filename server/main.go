@@ -57,11 +57,11 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Optional: Send a periodic message from server to client
-		// time.Sleep(1 * time.Second)
-		// if err := conn.WriteMessage(websocket.TextMessage, []byte("Hello from server!")); err != nil {
-		// 	log.Printf("Error sending periodic message: %v", err)
-		// 	break
-		// }
+		time.Sleep(1 * time.Second)
+		if err := conn.WriteMessage(websocket.TextMessage, []byte("Hello from server!")); err != nil {
+			log.Printf("Error sending periodic message: %v", err)
+			break
+		}
 	}
 	log.Printf("Client disconnected from %s", r.RemoteAddr)
 }
@@ -98,7 +98,7 @@ func main() {
 
 	http.HandleFunc("/ws", wsHandler)
 
-	http.HandleFunc("/ws_index", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.WriteHeader(http.StatusOK)
