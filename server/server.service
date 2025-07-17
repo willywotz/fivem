@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User=server
 Group=server
-WorkingDirectory=/root/fivem/server
+WorkingDirectory=/opt/server
 ExecStart=/root/fivem/server/server
 Restart=always
 RestartSec=10
