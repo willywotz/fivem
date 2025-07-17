@@ -14,6 +14,7 @@ type Status struct {
 	Hostname  string    `json:"hostname"`
 	Username  string    `json:"username"`
 	IP        string    `json:"ip"`
+	From      string    `json:"from"`
 	Time      time.Time `json:"time"`
 }
 
