@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"sync"
@@ -17,7 +18,7 @@ type Status struct {
 }
 
 func main() {
-	status := []Status{}
+	status := make([]Status, 0)
 	statusMu := &sync.Mutex{}
 
 	go func() {
@@ -36,9 +37,12 @@ func main() {
 		statusMu.Lock()
 		defer statusMu.Unlock()
 
+		fmt.Println("Received status update request")
+
 		if r.Method == http.MethodPost {
 			var newStatus Status
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
+				fmt.Printf("Failed to decode request body: %v\n", err)
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
@@ -57,7 +61,8 @@ func main() {
 		slices.Reverse(tmpStatus)
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(tmpStatus); err != nil {
+		if err := json.NewEncoder(w).Encode(status); err != nil {
+			fmt.Printf("Failed to encode status: %v\n", err)
 			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
 			return
 		}

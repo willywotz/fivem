@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -12,8 +13,11 @@ import (
 )
 
 func UpdateClientStatus() {
+	fmt.Println("Updating client status...")
+
 	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to lookup TXT records: %v\n", err)
 		return
 	}
 	mapTxts := make(map[string]string)
@@ -29,6 +33,7 @@ func UpdateClientStatus() {
 	if val, ok := mapTxts["url"]; ok {
 		baseURL = val
 	} else {
+		fmt.Fprintf(os.Stderr, "No URL found in TXT records\n")
 		return
 	}
 
@@ -37,7 +42,10 @@ func UpdateClientStatus() {
 	username, _ := os.LookupEnv("USERNAME")
 
 	ip := "unknown"
-	ipResp, _ := http.Get("https://api.ipify.org")
+	ipResp, err := http.Get("https://api.ipify.org")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get public IP: %v\n", err)
+	}
 	defer func() { _ = ipResp.Body.Close() }()
 	if ipResp.StatusCode == http.StatusOK {
 		ipBytes, _ := io.ReadAll(ipResp.Body)
@@ -50,12 +58,26 @@ func UpdateClientStatus() {
 		"username":   username,
 		"ip":         ip,
 
-		"time": time.Now().Unix(),
+		"time": time.Now().Format(time.RFC3339),
 	}
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to encode status data: %v\n", err)
 		return
 	}
-	_, _ = http.Post(baseURL+"/status", "application/json", body)
+
+	_, err = http.Post(baseURL+"/status", "application/json", body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to post status: %v\n", err)
+		return
+	}
+}
+
+func handleUpdateClientStatus() {
+	UpdateClientStatus()
+
+	for range time.Tick(1 * time.Second) {
+		UpdateClientStatus()
+	}
 }

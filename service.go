@@ -25,6 +25,8 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
+	go handleUpdateClientStatus()
+
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))
 
@@ -39,8 +41,6 @@ loop:
 			if err := handleUpdate(); err != nil {
 				_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
 			}
-		case <-time.Tick(1 * time.Minute):
-			UpdateClientStatus()
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
