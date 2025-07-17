@@ -50,6 +50,8 @@ func main() {
 			w.WriteHeader(http.StatusCreated)
 			return
 		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
 
 	http.HandleFunc("/get-status", func(w http.ResponseWriter, r *http.Request) {
