@@ -19,7 +19,7 @@ func ui() {
 	defer w.Destroy()
 
 	w.SetTitle("fivem")
-	w.SetSize(480, 320, webview.HintNone)
+	w.SetSize(480, 320, webview.HintMin)
 
 	_ = w.Bind("getVersion", func() string { return version })
 

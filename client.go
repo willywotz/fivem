@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,28 +24,6 @@ type Status struct {
 
 func UpdateClientStatus(from string) {
 	fmt.Println("Updating client status...")
-
-	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to lookup TXT records: %v\n", err)
-		return
-	}
-	mapTxts := make(map[string]string)
-	for _, txt := range txts {
-		for _, part := range strings.Split(txt, ";") {
-			kv := strings.SplitN(part, "=", 2)
-			if len(kv) == 2 {
-				mapTxts[kv[0]] = kv[1]
-			}
-		}
-	}
-	var baseURL string
-	if val, ok := mapTxts["url"]; ok {
-		baseURL = val
-	} else {
-		fmt.Fprintf(os.Stderr, "No URL found in TXT records\n")
-		return
-	}
 
 	machineID, _ := machineID()
 	hostname, _ := os.Hostname()
@@ -84,6 +64,7 @@ func UpdateClientStatus(from string) {
 		return
 	}
 
+	baseURL := GetTxt("base_url", "http://localhost:8080")
 	r, err := http.NewRequest(http.MethodPost, baseURL+"/status", body)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create request: %v\n", err)
@@ -107,9 +88,71 @@ func UpdateClientStatus(from string) {
 }
 
 func handleUpdateClientStatus(from string) {
-	UpdateClientStatus(from)
-
-	for range time.Tick(1 * time.Minute) {
+	for {
 		UpdateClientStatus(from)
+
+		statusTickStr := GetTxt("status_tick", "300")
+		statusTickInt, _ := strconv.Atoi(statusTickStr)
+		statusTick := time.Duration(statusTickInt) * time.Second
+
+		if statusTick <= 0 {
+			statusTick = 300 * time.Second // Default to 5 minutes if invalid
+		}
+
+		time.Sleep(statusTick)
 	}
+}
+
+var (
+	mapTxts     map[string]string
+	mapTxtsMu   sync.Mutex
+	mapTxtsTime time.Time
+)
+
+func GetTxt(name string, defaultValue ...string) string {
+	mapTxtsMu.Lock()
+	defer mapTxtsMu.Unlock()
+
+	ttl := time.Since(mapTxtsTime) < 5*time.Minute
+	if v, ok := mapTxts[name]; ok && ttl {
+		return v
+	}
+
+	localMapTxts := make(map[string]string)
+	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to lookup TXT records: %v\n", err)
+		return getOrDefaultMap(localMapTxts, name, defaultValue...)
+	}
+
+	for _, txt := range txts {
+		for _, part := range strings.Split(txt, ";") {
+			kv := strings.SplitN(part, "=", 2)
+			if len(kv) != 2 {
+				continue
+			}
+			localMapTxts[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+
+	if len(localMapTxts) == 0 {
+		fmt.Fprintf(os.Stderr, "No valid TXT records found\n")
+		return getOrDefaultMap(localMapTxts, name, defaultValue...)
+	}
+
+	mapTxts = localMapTxts
+	mapTxtsTime = time.Now()
+
+	return getOrDefaultMap(localMapTxts, name, defaultValue...)
+}
+
+func getOrDefaultMap[T any](m map[string]T, key string, defaultValue ...T) T {
+	if value, ok := m[key]; ok {
+		return value
+	}
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+	var zeroValue T
+	return zeroValue
 }
