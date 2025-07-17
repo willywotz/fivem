@@ -86,9 +86,14 @@ func UpdateClientStatus(from string) {
 	r.Header.Set("User-Agent", "fivem-tools-client")
 	r.Header.Set("Client-Hostname", hostname)
 
-	_, err = http.DefaultClient.Do(r)
+	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to post status: %v\n", err)
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusCreated {
+		fmt.Fprintf(os.Stderr, "Failed to post status, got status code: %d\n", resp.StatusCode)
 		return
 	}
 }
