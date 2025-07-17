@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 	"sync"
 	"time"
 )
@@ -54,10 +53,6 @@ func main() {
 	http.HandleFunc("/get-status", func(w http.ResponseWriter, r *http.Request) {
 		statusMu.Lock()
 		defer statusMu.Unlock()
-
-		tmpStatus := make([]Status, len(status))
-		copy(tmpStatus, status)
-		slices.Reverse(tmpStatus)
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(status); err != nil {
