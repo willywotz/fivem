@@ -17,7 +17,7 @@ type Status struct {
 	IP        string    `json:"ip"`
 	Country   string    `json:"country"`
 	From      string    `json:"from"`
-	Time      time.Time `json:"-"`
+	Time      time.Time `json:"time"`
 }
 
 func main() {
