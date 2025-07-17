@@ -1,1 +1,5 @@
 adduser --system --no-create-home --group server
+ln -s /root/fivem/server/server.service /etc/systemd/system/server.service
+systemctl daemon-reload
+systemctl enable server.service
+systemctl start server.service
