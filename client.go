@@ -76,7 +76,17 @@ func UpdateClientStatus(from string) {
 		return
 	}
 
-	_, err = http.Post(baseURL+"/status", "application/json", body)
+	r, err := http.NewRequest(http.MethodPost, baseURL+"/status", body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create request: %v\n", err)
+		return
+	}
+
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("User-Agent", "fivem-tools-client")
+	r.Header.Set("Client-Hostname", hostname)
+
+	_, err = http.DefaultClient.Do(r)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to post status: %v\n", err)
 		return
