@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -41,7 +42,10 @@ func main() {
 		if r.Method == http.MethodPost {
 			var newStatus Status
 			defer func() { _ = r.Body.Close() }()
-			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
+			buf := new(bytes.Buffer)
+			_, _ = buf.ReadFrom(r.Body)
+			fmt.Println("Received status update:", buf.String())
+			if err := json.NewDecoder(buf).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
 				fmt.Fprintf(os.Stderr, "[%v]: Failed to decode request body: %v\n", hostname, err)
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
