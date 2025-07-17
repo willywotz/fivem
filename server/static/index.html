@@ -1,39 +1,79 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Go WebSocket Client</title>
+    <title>Go WebSocket Client with Auto Reconnect</title>
     <style>
         body { font-family: sans-serif; }
         #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: scroll; margin-bottom: 10px; }
         input[type="text"] { width: 80%; padding: 8px; }
         button { padding: 8px 15px; }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: white;
+            margin-left: 10px;
+        }
+        .status-connected { background-color: green; }
+        .status-disconnected { background-color: red; }
+        .status-reconnecting { background-color: orange; }
     </style>
 </head>
 <body>
-    <h1>Go WebSocket Demo</h1>
-    <p>This client will connect to <code>ws://yourdomain.com/ws</code> (or <code>wss://</code>).</p>
+    <h1>Go WebSocket Demo <span id="connectionStatus" class="status-disconnected">Disconnected</span></h1>
+    <p>This client will connect to <code>wss://fivem-tools.willywotz.com/ws</code> (or <code>wss://</code>).</p>
     <div id="messages"></div>
     <input type="text" id="messageInput" placeholder="Type a message...">
     <button onclick="sendMessage()">Send</button>
-    <button onclick="closeConnection()">Close</button>
+    <button onclick="closeConnection(1000, 'User initiated close')">Close</button>
 
     <script>
         let ws;
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
+        const statusBadge = document.getElementById('connectionStatus');
+
+        // Reconnect parameters
+        let reconnectInterval = 1000; // Start with 1 second delay
+        const maxReconnectInterval = 30000; // Max 30 seconds delay
+        const reconnectDecay = 1.5; // Factor to increase delay (e.g., 1s, 1.5s, 2.25s, ...)
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 30; // Stop trying after 30 attempts
+
+        function updateStatus(status) {
+            statusBadge.textContent = status;
+            statusBadge.className = 'status-badge'; // Reset classes
+            if (status === 'Connected') {
+                statusBadge.classList.add('status-connected');
+            } else if (status === 'Disconnected') {
+                statusBadge.classList.add('status-disconnected');
+            } else if (status === 'Reconnecting...') {
+                statusBadge.classList.add('status-reconnecting');
+            }
+        }
 
         function connectWebSocket() {
-            // Use wss:// for production with Cloudflare/Nginx
-            // Use ws:// for local testing if Nginx/Cloudflare not in front
+            if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+                // Already connecting or open, do nothing
+                return;
+            }
+
+            updateStatus('Reconnecting...');
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host; // yourdomain.com or localhost:8080
-            const wsUrl = `${protocol}//${host}/ws`;
+            // Use window.location.host for relative path, or hardcode your domain:
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            // For direct testing against your specific domain:
+            // const wsUrl = `wss://fivem-tools.willywotz.com/ws`;
+
 
             ws = new WebSocket(wsUrl);
 
             ws.onopen = function(event) {
+                updateStatus('Connected');
                 addMessage('Connected to WebSocket server!', 'system');
                 console.log('WebSocket opened:', event);
+                reconnectInterval = 1000; // Reset delay on successful connection
+                reconnectAttempts = 0; // Reset attempts
             };
 
             ws.onmessage = function(event) {
@@ -42,21 +82,42 @@
             };
 
             ws.onclose = function(event) {
-                addMessage(`Disconnected from WebSocket: Code ${event.code}, Reason: ${event.reason}`, 'system');
+                let reason = event.reason || 'No reason provided';
+                let message = `Disconnected from WebSocket: Code ${event.code}, Reason: ${reason}`;
+                addMessage(message, 'system');
                 console.log('WebSocket closed:', event);
-                ws = null; // Clear WebSocket object
+                updateStatus('Disconnected');
+
+                // Don't reconnect if the close was intentional (code 1000 is clean close)
+                // Or if it was explicitly told to close by the user (custom code > 1000)
+                if (event.code === 1000 || event.code >= 3000) { // Custom codes can indicate intentional close
+                    addMessage('Connection closed cleanly or intentionally. No auto-reconnect.', 'system');
+                    return;
+                }
+
+                // Attempt to reconnect after a delay, with exponential backoff
+                if (reconnectAttempts < maxReconnectAttempts || true) { // Always true to allow for testing
+                    reconnectAttempts++;
+                    const delay = Math.min(reconnectInterval * Math.pow(reconnectDecay, reconnectAttempts - 1), maxReconnectInterval);
+                    addMessage(`Attempting to reconnect in ${delay / 1000} seconds... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})`, 'system');
+                    setTimeout(connectWebSocket, delay);
+                } else {
+                    addMessage('Maximum reconnect attempts reached. Please refresh the page to try again.', 'error');
+                }
             };
 
             ws.onerror = function(event) {
                 addMessage('WebSocket error!', 'error');
                 console.error('WebSocket error:', event);
+                // The onerror event is often followed by onclose, so the reconnect logic
+                // is typically handled in onclose to avoid duplicate reconnect attempts.
             };
         }
 
         function sendMessage() {
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 addMessage('Not connected to WebSocket. Trying to connect...', 'system');
-                connectWebSocket(); // Try to reconnect if not open
+                connectWebSocket(); // Try to connect/reconnect
                 return;
             }
             const message = messageInput.value;
@@ -67,9 +128,10 @@
             }
         }
 
-        function closeConnection() {
+        function closeConnection(code = 1000, reason = "Client initiated close") {
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close();
+                addMessage(`Closing connection intentionally (Code: ${code}, Reason: ${reason})...`, 'system');
+                ws.close(code, reason);
             } else {
                 addMessage('WebSocket is not open to close.', 'system');
             }
@@ -78,12 +140,12 @@
         function addMessage(message, type) {
             const p = document.createElement('p');
             p.textContent = message;
-            p.className = type; // Add a class for styling (e.g., client, server, system, error)
+            p.className = type;
             messagesDiv.appendChild(p);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Connect when the page loads
+        // Initial connection when the page loads
         window.onload = connectWebSocket;
     </script>
 </body>
