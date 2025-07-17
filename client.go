@@ -20,7 +20,6 @@ import (
 var (
 	lastActivityTime time.Time
 	lastActivityMu   sync.Mutex
-	lastActivityOnce sync.Once
 )
 
 type Status struct {
