@@ -101,7 +101,7 @@ func UpdateClientStatus(from string) {
 func handleUpdateClientStatus(from string) {
 	UpdateClientStatus(from)
 
-	for range time.Tick(1 * time.Second) {
+	for range time.Tick(1 * time.Minute) {
 		UpdateClientStatus(from)
 	}
 }
