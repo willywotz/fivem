@@ -57,6 +57,17 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error reading message: %v", err)
 			break // Exit loop on error (e.g., client disconnected)
 		}
+
+		if p != nil && string(p) == "ping" {
+			// Respond to ping with pong
+			if err := conn.WriteMessage(websocket.PongMessage, []byte("pong")); err != nil {
+				log.Printf("Error writing pong message: %v", err)
+				break // Exit loop on error
+			}
+
+			continue // Skip further processing for ping messages
+		}
+
 		log.Printf("Received message from client: %s (Type: %d)", p, messageType)
 
 		// Echo the message back to the client
@@ -73,6 +84,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+
 	log.Printf("Client disconnected from %s", r.RemoteAddr)
 }
 

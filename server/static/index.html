@@ -67,6 +67,7 @@
 
 
             ws = new WebSocket(wsUrl);
+            let wsAlive = false;
 
             ws.onopen = function(event) {
                 updateStatus('Connected');
@@ -74,14 +75,24 @@
                 console.log('WebSocket opened:', event);
                 reconnectInterval = 1000; // Reset delay on successful connection
                 reconnectAttempts = 0; // Reset attempts
+
+                wsAlive = true; // Set alive flag
+                setInterval(() => wsAlive && ws.send("ping"), 5000);
             };
 
             ws.onmessage = function(event) {
+                if (event.data === "pong") {
+                    console.log("Received pong from server");
+                    return; // Ignore pong messages
+                }
+
                 addMessage(`Received: ${event.data}`, 'server');
                 console.log('Message from server:', event.data);
             };
 
             ws.onclose = function(event) {
+                wsAlive = false; // Clear alive flag
+
                 let reason = event.reason || 'No reason provided';
                 let message = `Disconnected from WebSocket: Code ${event.code}, Reason: ${reason}`;
                 addMessage(message, 'system');
