@@ -44,7 +44,6 @@ func main() {
 			defer func() { _ = r.Body.Close() }()
 			buf := new(bytes.Buffer)
 			_, _ = buf.ReadFrom(r.Body)
-			fmt.Println("Received status update:", buf.String())
 			if err := json.NewDecoder(buf).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
 				fmt.Fprintf(os.Stderr, "[%v]: Failed to decode request body: %v\n", hostname, err)
