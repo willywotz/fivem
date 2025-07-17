@@ -69,6 +69,7 @@ func main() {
 		slices.Reverse(tmpStatus)
 
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		if err := json.NewEncoder(w).Encode(tmpStatus); err != nil {
 			fmt.Printf("Failed to encode status: %v\n", err)
 			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
