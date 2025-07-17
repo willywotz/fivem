@@ -1,0 +1,14 @@
+[Unit]
+Description=server
+After=network.target  # Ensures network is up before starting
+
+[Service]
+User=server    # The user under which the service will run
+Group=server      # The group under which the service will run
+WorkingDirectory=/root/fivem/server # Directory where your application is located
+ExecStart=/root/fivem/server/server # Full path to your executable or script
+Restart=always        # Restart the service if it stops
+RestartSec=10         # Wait 10 seconds before restarting
+
+[Install]
+WantedBy=multi-user.target # Ensures the service starts in multi-user mode (standard server boot)
