@@ -59,7 +59,7 @@ func UpdateClientStatus(from string) {
 		"ip":         ip,
 		"from":       from,
 
-		"time": time.Now().Format(time.RFC3339),
+		"time": time.Now(),
 	}
 
 	body := bytes.NewBuffer(nil)
