@@ -29,8 +29,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(os.Stdout).Encode(r.Header) // Log request headers for debugging
-
 	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -127,6 +125,8 @@ func main() {
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
+			newStatus.IP = r.Header.Get("Cf-Connecting-Ip")
+			newStatus.Country = r.Header.Get("Cf-Ipcountry")
 			newStatus.Time = time.Now()
 			status = append(status, newStatus)
 			w.WriteHeader(http.StatusCreated)

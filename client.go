@@ -41,23 +41,23 @@ func UpdateClientStatus(from string) {
 
 	ip := "unknown"
 	country := "unknown"
-	ipResp, err := http.Get("https://api.country.is/")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to get public IP: %v\n", err)
-	}
-	defer func() { _ = ipResp.Body.Close() }()
-	if ipResp.StatusCode == http.StatusOK {
-		var ipData struct {
-			IP      string `json:"ip"`
-			Country string `json:"country"`
-		}
-		if err := json.NewDecoder(ipResp.Body).Decode(&ipData); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to decode IP response: %v\n", err)
-		} else {
-			ip = ipData.IP
-			country = ipData.Country
-		}
-	}
+	// ipResp, err := http.Get("https://api.country.is/")
+	// if err != nil {
+	// 	fmt.Fprintf(os.Stderr, "Failed to get public IP: %v\n", err)
+	// }
+	// defer func() { _ = ipResp.Body.Close() }()
+	// if ipResp.StatusCode == http.StatusOK {
+	// 	var ipData struct {
+	// 		IP      string `json:"ip"`
+	// 		Country string `json:"country"`
+	// 	}
+	// 	if err := json.NewDecoder(ipResp.Body).Decode(&ipData); err != nil {
+	// 		fmt.Fprintf(os.Stderr, "Failed to decode IP response: %v\n", err)
+	// 	} else {
+	// 		ip = ipData.IP
+	// 		country = ipData.Country
+	// 	}
+	// }
 
 	status := "active"
 	lastActivityMu.Lock()
