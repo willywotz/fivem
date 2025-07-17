@@ -38,8 +38,6 @@ func main() {
 		statusMu.Lock()
 		defer statusMu.Unlock()
 
-		fmt.Println("Received status update request")
-
 		if r.Method == http.MethodPost {
 			var newStatus Status
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
