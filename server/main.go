@@ -3,47 +3,69 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 )
 
+type Status struct {
+	MachineID string    `json:"machine_id"`
+	Hostname  string    `json:"hostname"`
+	Username  string    `json:"username"`
+	IP        string    `json:"ip"`
+	Time      time.Time `json:"time"`
+}
+
 func main() {
-	http.HandleFunc("/", IndexHandler)
+	status := []Status{}
+	statusMu := &sync.Mutex{}
 
-	_ = http.ListenAndServe(":8080", nil)
-}
+	go func() {
+		for range time.Tick(4 * time.Hour) {
+			for i := len(status) - 1; i >= 0; i-- {
+				if time.Since(status[i].Time) > 4*time.Hour {
+					statusMu.Lock()
+					status = append(status[:i], status[i+1:]...)
+					statusMu.Unlock()
+				}
+			}
+		}
+	}()
 
-type Logger struct {
-	MachineID string `json:"machine_id"`
-	Time      string `json:"time"`
-	Action    string `json:"action"`
-	Message   string `json:"message"`
-}
+	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		statusMu.Lock()
+		defer statusMu.Unlock()
 
-var logs = make([]Logger, 0)
-
-var muLogs sync.Mutex
-
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	muLogs.Lock()
-	defer muLogs.Unlock()
-
-	if r.Method == http.MethodGet {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(logs)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		var logEntry Logger
-		if err := json.NewDecoder(r.Body).Decode(&logEntry); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if r.Method == http.MethodPost {
+			var newStatus Status
+			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
+				http.Error(w, "Invalid request body", http.StatusBadRequest)
+				return
+			}
+			status = append(status, newStatus)
+			w.WriteHeader(http.StatusCreated)
 			return
 		}
-		logEntry.Time = time.Now().Format(time.RFC3339)
-		logs = append(logs, logEntry)
-		return
-	}
+	})
 
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	http.HandleFunc("/get-status", func(w http.ResponseWriter, r *http.Request) {
+		statusMu.Lock()
+		defer statusMu.Unlock()
+
+		tmpStatus := make([]Status, len(status))
+		copy(tmpStatus, status)
+		slices.Reverse(tmpStatus)
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(tmpStatus); err != nil {
+			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
+			return
+		}
+	})
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+	})
+
+	_ = http.ListenAndServe(":8080", nil)
 }
