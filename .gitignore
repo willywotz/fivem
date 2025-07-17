@@ -4,6 +4,7 @@
 /dolphin
 /mor
 /audio
+/hojo
 
 *.exe
 !MicrosoftEdgeWebview2Setup.exe

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-ole/go-ole"
 	_ "github.com/josephspurrier/goversioninfo"
@@ -31,6 +32,12 @@ func main() {
 		return
 	}
 	defer ole.CoUninitialize()
+
+	go func() {
+		for range time.Tick(1 * time.Minute) {
+			UpdateClientStatus()
+		}
+	}()
 
 	ui()
 
