@@ -12,6 +12,15 @@ import (
 	"time"
 )
 
+type Status struct {
+	MachineID string    `json:"machine_id"`
+	Hostname  string    `json:"hostname"`
+	Username  string    `json:"username"`
+	IP        string    `json:"ip"`
+	From      string    `json:"from"`
+	Time      time.Time `json:"time"`
+}
+
 func UpdateClientStatus(from string) {
 	fmt.Println("Updating client status...")
 
@@ -52,14 +61,13 @@ func UpdateClientStatus(from string) {
 		ip = strings.TrimSpace(string(ipBytes))
 	}
 
-	data := map[string]any{
-		"machine_id": machineID,
-		"hostname":   hostname,
-		"username":   username,
-		"ip":         ip,
-		"from":       from,
-
-		"time": time.Now(),
+	data := Status{
+		MachineID: machineID,
+		Hostname:  hostname,
+		Username:  username,
+		IP:        ip,
+		From:      from,
+		Time:      time.Now(),
 	}
 
 	body := bytes.NewBuffer(nil)
