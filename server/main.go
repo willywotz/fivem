@@ -26,13 +26,15 @@ func main() {
 
 	go func() {
 		for range time.Tick(4 * time.Hour) {
-			for i := len(status) - 1; i >= 0; i-- {
-				if time.Since(status[i].Time) > 4*time.Hour {
-					statusMu.Lock()
-					status = append(status[:i], status[i+1:]...)
-					statusMu.Unlock()
+			statusMu.Lock()
+			newStatus := make([]Status, 0)
+			for _, s := range status {
+				if time.Since(s.Time) < 24*time.Hour {
+					newStatus = append(newStatus, s)
 				}
 			}
+			status = newStatus
+			statusMu.Unlock()
 		}
 	}()
 
