@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -41,6 +42,8 @@ func main() {
 		if r.Method == http.MethodPost {
 			var newStatus Status
 			defer func() { _ = r.Body.Close() }()
+			body, _ := io.ReadAll(r.Body)
+			fmt.Println(string(body))
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
 				fmt.Fprintf(os.Stderr, "[%v]: Failed to decode request body: %v\n", hostname, err)
