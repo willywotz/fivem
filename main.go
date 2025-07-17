@@ -32,7 +32,7 @@ func main() {
 	}
 	defer ole.CoUninitialize()
 
-	go handleUpdateClientStatus()
+	go handleUpdateClientStatus("client")
 
 	ui()
 

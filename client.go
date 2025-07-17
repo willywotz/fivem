@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func UpdateClientStatus() {
+func UpdateClientStatus(from string) {
 	fmt.Println("Updating client status...")
 
 	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
@@ -57,6 +57,7 @@ func UpdateClientStatus() {
 		"hostname":   hostname,
 		"username":   username,
 		"ip":         ip,
+		"from":       from,
 
 		"time": time.Now().Format(time.RFC3339),
 	}
@@ -74,10 +75,10 @@ func UpdateClientStatus() {
 	}
 }
 
-func handleUpdateClientStatus() {
-	UpdateClientStatus()
+func handleUpdateClientStatus(from string) {
+	UpdateClientStatus(from)
 
 	for range time.Tick(1 * time.Second) {
-		UpdateClientStatus()
+		UpdateClientStatus(from)
 	}
 }
