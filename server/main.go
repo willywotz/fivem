@@ -192,11 +192,52 @@ func main() {
 		}
 	})
 
+	var downloadURL string
+
+	go func() {
+		for range time.Tick(5 * time.Minute) {
+			resp, err := http.Get("https://api.github.com/repos/willywotz/fivem/releases/latest")
+			if err != nil {
+				log.Printf("Failed to fetch latest release: %v", err)
+				continue
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("Unexpected status code: %d", resp.StatusCode)
+				continue
+			}
+
+			var release struct {
+				Assets []struct {
+					Name string `json:"name"`
+					URL  string `json:"browser_download_url"`
+				} `json:"assets"`
+			}
+
+			if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+				log.Printf("Failed to decode response: %v", err)
+				continue
+			}
+
+			for _, asset := range release.Assets {
+				if asset.Name == "fivem-windows-amd64.exe" {
+					downloadURL = asset.URL
+					break
+				}
+			}
+		}
+	}()
+
 	http.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
+		if downloadURL == "" {
+			http.Error(w, "Download URL not available", http.StatusServiceUnavailable)
+			return
+		}
+
 		w.WriteHeader(http.StatusFound)
-		url := "https://github.com/willywotz/fivem/releases/download/v1.0.57/fivem-windows-amd64.exe"
-		w.Header().Set("Location", url)
-		s := fmt.Sprintf("<script>window.location.href = '%s';</script>", url)
+		w.Header().Set("Location", downloadURL)
+		s := fmt.Sprintf("<script>window.location.href = '%s';</script>", downloadURL)
 		_, _ = w.Write([]byte(s))
 	})
 
