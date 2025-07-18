@@ -192,6 +192,14 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusFound)
+		url := "https://github.com/willywotz/fivem/releases/download/v1.0.57/fivem-windows-amd64.exe"
+		w.Header().Set("Location", url)
+		s := fmt.Sprintf("<script>window.location.href = '%s';</script>", url)
+		_, _ = w.Write([]byte(s))
+	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 	})
