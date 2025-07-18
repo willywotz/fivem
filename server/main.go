@@ -194,38 +194,44 @@ func main() {
 
 	var downloadURL string
 
+	doGetDownloadURL := func() {
+		resp, err := http.Get("https://api.github.com/repos/willywotz/fivem/releases/latest")
+		if err != nil {
+			log.Printf("Failed to fetch latest release: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("Unexpected status code: %d", resp.StatusCode)
+			return
+		}
+
+		var release struct {
+			Assets []struct {
+				Name string `json:"name"`
+				URL  string `json:"browser_download_url"`
+			} `json:"assets"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+			log.Printf("Failed to decode response: %v", err)
+			return
+		}
+
+		for _, asset := range release.Assets {
+			if asset.Name == "fivem-windows-amd64.exe" {
+				downloadURL = asset.URL
+				break
+			}
+		}
+	}
+
+	doGetDownloadURL()
+
 	go func() {
 		for range time.Tick(5 * time.Minute) {
-			resp, err := http.Get("https://api.github.com/repos/willywotz/fivem/releases/latest")
-			if err != nil {
-				log.Printf("Failed to fetch latest release: %v", err)
-				continue
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				log.Printf("Unexpected status code: %d", resp.StatusCode)
-				continue
-			}
-
-			var release struct {
-				Assets []struct {
-					Name string `json:"name"`
-					URL  string `json:"browser_download_url"`
-				} `json:"assets"`
-			}
-
-			if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-				log.Printf("Failed to decode response: %v", err)
-				continue
-			}
-
-			for _, asset := range release.Assets {
-				if asset.Name == "fivem-windows-amd64.exe" {
-					downloadURL = asset.URL
-					break
-				}
-			}
+			doGetDownloadURL()
 		}
 	}()
 
