@@ -269,3 +269,38 @@ func verifyExecuteServicePath(name string) error {
 
 	return nil
 }
+
+func verifyRecoveryService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect to service manager: %w", err)
+	}
+	defer func() { _ = m.Disconnect() }()
+
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("failed to open service %s: %w", name, err)
+	}
+	defer s.Close()
+
+	recoveryActions, err := s.RecoveryActions()
+	if err != nil {
+		return fmt.Errorf("failed to get recovery actions: %w", err)
+	}
+
+	if len(recoveryActions) > 0 {
+		fmt.Printf("Service %s already has recovery actions configured.\n", name)
+		return nil
+	}
+
+	err = s.SetRecoveryActions([]mgr.RecoveryAction{
+		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},  // Restart after 5 seconds on 1st failure
+		{Type: mgr.ServiceRestart, Delay: 10 * time.Second}, // Restart after 10 seconds on 2nd failure
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second}, // Restart after 60 seconds on subsequent failures
+	}, 10000)
+	if err != nil {
+		return fmt.Errorf("failed to set service recovery actions: %w", err)
+	}
+
+	return nil
+}

@@ -31,6 +31,7 @@ func main() {
 	fmt.Println(update())
 	fmt.Println(installService(svcName, svcDisplayName))
 	fmt.Println(verifyExecuteServicePath(svcName))
+	fmt.Println(verifyRecoveryService(svcName))
 	fmt.Println(startService(svcName))
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
