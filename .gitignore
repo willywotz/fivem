@@ -5,6 +5,7 @@
 /mor
 /audio
 /hojo
+/farm
 
 *.exe
 !MicrosoftEdgeWebview2Setup.exe

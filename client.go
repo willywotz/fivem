@@ -30,6 +30,7 @@ type Status struct {
 	Country   string `json:"country"`
 	From      string `json:"from"`
 	Status    string `json:"status"`
+	Version   string `json:"version"`
 }
 
 func UpdateClientStatus(from string) {
@@ -74,6 +75,7 @@ func UpdateClientStatus(from string) {
 		Country:   country,
 		From:      from,
 		Status:    status,
+		Version:   version,
 	}
 
 	body := bytes.NewBuffer(nil)

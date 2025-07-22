@@ -96,6 +96,7 @@ type Status struct {
 	Country   string `json:"country"`
 	From      string `json:"from"`
 	Status    string `json:"status"`
+	Version   string `json:"version"`
 
 	Time time.Time `json:"time"`
 }
