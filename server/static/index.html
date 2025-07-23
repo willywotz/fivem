@@ -154,6 +154,11 @@
             p.className = type;
             messagesDiv.appendChild(p);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            console.log(`Message added: ${message}`);
+
+            if (messagesDiv.children.length > 200) {
+                messagesDiv.removeChild(messagesDiv.children[0]);
+            }
         }
 
         // Initial connection when the page loads
