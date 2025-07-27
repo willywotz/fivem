@@ -26,7 +26,7 @@ func ui() {
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {
 		devices, err := getAudioInputDevices()
 		if err != nil {
-			fmt.Printf("Error getting audio input devices: %v\n", err)
+			failed("Error getting audio input devices: %v", err)
 			w.Eval(fmt.Sprintf("alert('Error getting audio input devices: %v');", err.Error()))
 			return []AudioDevice{}
 		}
@@ -48,7 +48,7 @@ func ui() {
 			}
 
 			if err := setAudioVolume(a, b); err != nil {
-				fmt.Printf("Error setting volume: %v\n", err)
+				failed("Error setting volume: %v", err)
 				w.Eval(fmt.Sprintf("alert('Error setting volume: %v');", err.Error()))
 			}
 		}
@@ -59,7 +59,7 @@ func ui() {
 		defer volumeMu.Unlock()
 
 		if endpointId == "" {
-			fmt.Println("Endpoint ID cannot be empty.")
+			failed("Endpoint ID cannot be empty.")
 			w.Eval("alert('Endpoint ID cannot be empty.');")
 			return
 		}
@@ -72,7 +72,7 @@ func ui() {
 		defer volumeMu.Unlock()
 
 		if volume < 0 || volume > 100 {
-			fmt.Printf("Invalid volume level: %d. Must be between 0 and 100.\n", volume)
+			failed("Invalid volume level: %d. Must be between 0 and 100.", volume)
 			w.Eval(fmt.Sprintf("alert('Invalid volume level: %d. Must be between 0 and 100.');", volume))
 			return
 		}

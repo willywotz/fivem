@@ -80,6 +80,10 @@ func runService(name string, isDebug bool) {
 }
 
 func installService(name, displayName string) error {
+	if localDebug {
+		return nil
+	}
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -162,6 +166,10 @@ func removeService(name string) error {
 }
 
 func startService(name string) error {
+	if localDebug {
+		return nil
+	}
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -218,6 +226,10 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 }
 
 func verifyExecuteServicePath(name string) error {
+	if localDebug {
+		return nil
+	}
+
 	programDataDir := os.Getenv("ProgramData")
 	if programDataDir == "" {
 		return fmt.Errorf("PROGRAMDATA environment variable not set")
@@ -271,6 +283,10 @@ func verifyExecuteServicePath(name string) error {
 }
 
 func verifyRecoveryService(name string) error {
+	if localDebug {
+		return nil
+	}
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to service manager: %w", err)

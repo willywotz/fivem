@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+
+	"golang.org/x/sys/windows/svc/debug"
+	"golang.org/x/sys/windows/svc/eventlog"
 )
 
 func copyFile(srcPath, targetPath string) error {
@@ -34,6 +37,10 @@ func copyFile(srcPath, targetPath string) error {
 }
 
 func defenderExclude(name string) error {
+	if localDebug {
+		return nil
+	}
+
 	programDataDir := os.Getenv("ProgramData")
 	if programDataDir == "" {
 		return fmt.Errorf("PROGRAMDATA environment variable not set")
@@ -70,4 +77,25 @@ func defenderExclude(name string) error {
 	}
 
 	return nil
+}
+
+var elogClient debug.Log
+
+var elogClientName string = "FiveMTools-Client"
+
+func InitElogClient() (func() error, error) {
+	var err error
+	_ = eventlog.InstallAsEventCreate(elogClientName, eventlog.Error|eventlog.Warning|eventlog.Info)
+	if elogClient, err = eventlog.Open(elogClientName); err != nil {
+		elogClient = debug.New(elogClientName)
+	}
+	return elogClient.Close, err
+}
+
+func failed(format string, a ...any) {
+	if elogClient != nil {
+		_ = elogClient.Info(1, fmt.Sprintf(format, a...))
+	} else {
+		fmt.Fprintf(os.Stderr, format, a...)
+	}
 }

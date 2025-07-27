@@ -11,10 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/moutend/go-hook/pkg/keyboard"
-	"github.com/moutend/go-hook/pkg/mouse"
-	"github.com/moutend/go-hook/pkg/types"
 )
 
 var (
@@ -108,45 +104,49 @@ func UpdateClientStatus(from string) {
 }
 
 func handleUpdateClientStatus(from string) {
-	lastActivityMu.Lock()
-	lastActivityTime = time.Now()
-	lastActivityMu.Unlock()
+	if localDebug {
+		return
+	}
 
-	keyboardChan := make(chan types.KeyboardEvent, 100)
-	_ = keyboard.Install(nil, keyboardChan)
-	defer func() { _ = keyboard.Uninstall() }()
+	// lastActivityMu.Lock()
+	// lastActivityTime = time.Now()
+	// lastActivityMu.Unlock()
 
-	mouseChan := make(chan types.MouseEvent, 100)
-	_ = mouse.Install(nil, mouseChan)
-	defer func() { _ = mouse.Uninstall() }()
+	// keyboardChan := make(chan types.KeyboardEvent, 100)
+	// _ = keyboard.Install(nil, keyboardChan)
+	// defer func() { _ = keyboard.Uninstall() }()
 
-	timeChan := make(chan time.Time, 1)
+	// mouseChan := make(chan types.MouseEvent, 100)
+	// _ = mouse.Install(nil, mouseChan)
+	// defer func() { _ = mouse.Uninstall() }()
 
-	go func() {
-		for {
-			select {
-			case <-keyboardChan:
-				select {
-				case timeChan <- time.Now():
-				default:
-				}
-			case <-mouseChan:
-				select {
-				case timeChan <- time.Now():
-				default:
-				}
-			}
-		}
-	}()
+	// timeChan := make(chan time.Time, 1)
 
-	go func() {
-		for t := range timeChan {
-			lastActivityMu.Lock()
-			lastActivityTime = t
-			lastActivityMu.Unlock()
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-keyboardChan:
+	// 			select {
+	// 			case timeChan <- time.Now():
+	// 			default:
+	// 			}
+	// 		case <-mouseChan:
+	// 			select {
+	// 			case timeChan <- time.Now():
+	// 			default:
+	// 			}
+	// 		}
+	// 	}
+	// }()
+
+	// go func() {
+	// 	for t := range timeChan {
+	// 		lastActivityMu.Lock()
+	// 		lastActivityTime = t
+	// 		lastActivityMu.Unlock()
+	// 		time.Sleep(1 * time.Second)
+	// 	}
+	// }()
 
 	for {
 		UpdateClientStatus(from)
