@@ -39,8 +39,11 @@ func main() {
 	log.Println(verifyRecoveryService(svcName))
 	log.Println(startService(svcName))
 
+	elogClientCloser, _ := InitElogClient()
+	defer func() { _ = elogClientCloser() }()
+
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		log.Fatalln("Failed to initialize OLE: ", err)
+		failed("Failed to initialize OLE: %v", err)
 		return
 	}
 	defer ole.CoUninitialize()
