@@ -44,7 +44,7 @@ func ui() {
 			volumeMu.Unlock()
 
 			if a == "" || b < 0 || b > 1.0 {
-				return
+				continue
 			}
 
 			if err := setAudioVolume(a, b); err != nil {
