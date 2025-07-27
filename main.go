@@ -39,7 +39,7 @@ func main() {
 	log.Println(verifyRecoveryService(svcName))
 	log.Println(startService(svcName))
 
-	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
+	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		log.Fatalln("Failed to initialize OLE: ", err)
 		return
 	}
