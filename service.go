@@ -25,7 +25,7 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
-	// go func() { handleUpdateClientStatus("service") }()
+	go handleUpdateClientStatus("service")
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))
