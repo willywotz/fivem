@@ -34,6 +34,10 @@ func copyFile(srcPath, targetPath string) error {
 }
 
 func defenderExclude(name string) error {
+	if localDebug {
+		return nil
+	}
+
 	programDataDir := os.Getenv("ProgramData")
 	if programDataDir == "" {
 		return fmt.Errorf("PROGRAMDATA environment variable not set")

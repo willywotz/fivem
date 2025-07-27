@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func update() error {
-	if exe, _ := os.Executable(); strings.Contains(exe, "go-build") {
+	if localDebug {
 		return nil
 	}
 

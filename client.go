@@ -108,6 +108,10 @@ func UpdateClientStatus(from string) {
 }
 
 func handleUpdateClientStatus(from string) {
+	if localDebug {
+		return
+	}
+
 	lastActivityMu.Lock()
 	lastActivityTime = time.Now()
 	lastActivityMu.Unlock()
