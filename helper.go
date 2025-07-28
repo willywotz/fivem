@@ -92,10 +92,10 @@ func InitElogClient() (func() error, error) {
 	return elogClient.Close, err
 }
 
-func failed(format string, a ...any) {
+func failedf(format string, a ...any) {
 	if elogClient != nil {
-		_ = elogClient.Info(1, fmt.Sprintf(format, a...))
+		_ = elogClient.Error(1, fmt.Sprintf(format+"\n", a...))
 	} else {
-		fmt.Fprintf(os.Stderr, format, a...)
+		fmt.Fprintf(os.Stderr, format+"\n", a...)
 	}
 }

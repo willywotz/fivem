@@ -19,7 +19,7 @@ var localDebug bool = false
 
 func main() {
 	if runtime.GOOS != "windows" {
-		log.Fatalln("This code is specific to Windows.")
+		failedf("This code is specific to Windows.")
 		return
 	}
 
@@ -43,7 +43,7 @@ func main() {
 	defer func() { _ = elogClientCloser() }()
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		failed("Failed to initialize OLE: %v", err)
+		failedf("Failed to initialize OLE: %v", err)
 		return
 	}
 	defer ole.CoUninitialize()

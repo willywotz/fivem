@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -30,7 +29,7 @@ type Status struct {
 }
 
 func UpdateClientStatus(from string) {
-	fmt.Println("Updating client status...")
+	failedf("Updating client status...")
 
 	machineID, _ := machineID()
 	hostname, _ := os.Hostname()
@@ -76,14 +75,14 @@ func UpdateClientStatus(from string) {
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to encode status data: %v\n", err)
+		failedf("Failed to encode status data: %v", err)
 		return
 	}
 
 	baseURL := GetTxt("base_url", "http://localhost:8080")
 	r, err := http.NewRequest(http.MethodPost, baseURL+"/status", body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create request: %v\n", err)
+		failedf("Failed to create request: %v", err)
 		return
 	}
 
@@ -93,12 +92,12 @@ func UpdateClientStatus(from string) {
 
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to post status: %v\n", err)
+		failedf("Failed to post status: %v", err)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
-		fmt.Fprintf(os.Stderr, "Failed to post status, got status code: %d\n", resp.StatusCode)
+		failedf("Failed to post status, got status code: %d", resp.StatusCode)
 		return
 	}
 }
@@ -181,7 +180,7 @@ func GetTxt(name string, defaultValue ...string) string {
 	localMapTxts := make(map[string]string)
 	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to lookup TXT records: %v\n", err)
+		failedf("Failed to lookup TXT records: %v", err)
 		return getOrDefaultMap(localMapTxts, name, defaultValue...)
 	}
 
@@ -196,7 +195,7 @@ func GetTxt(name string, defaultValue ...string) string {
 	}
 
 	if len(localMapTxts) == 0 {
-		fmt.Fprintf(os.Stderr, "No valid TXT records found\n")
+		failedf("No valid TXT records found")
 		return getOrDefaultMap(localMapTxts, name, defaultValue...)
 	}
 
