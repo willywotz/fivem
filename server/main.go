@@ -18,8 +18,8 @@ import (
 var staticFS embed.FS
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow all origins for simplicity in example.
 		// In production, tighten this for security!
