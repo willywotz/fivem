@@ -209,23 +209,26 @@ func main() {
 			data.Reversed = false
 		}
 
-		start := (data.Page - 1) * data.PerPage
-		end := start + data.PerPage
-		if start >= len(status) {
-			data.Items = []Status{}
-		} else if end > len(status) {
-			data.Items = status[start:]
-		} else {
-			data.Items = status[start:end]
-		}
-
-		data.TotalItems = len(status)
+		items := make([]Status, len(status))
+		copy(items, status)
 
 		if data.Reversed {
-			for i, j := 0, len(data.Items)-1; i < j; i, j = i+1, j-1 {
-				data.Items[i], data.Items[j] = data.Items[j], data.Items[i]
+			for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
+				items[i], items[j] = items[j], items[i]
 			}
 		}
+
+		start := (data.Page - 1) * data.PerPage
+		end := start + data.PerPage
+		if start >= len(items) {
+			data.Items = []Status{}
+		} else if end > len(items) {
+			data.Items = items[start:]
+		} else {
+			data.Items = items[start:end]
+		}
+
+		data.TotalItems = len(items)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "max-age=0")
