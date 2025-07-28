@@ -49,6 +49,8 @@ github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxec
 github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/moutend/go-hook v0.1.0 h1:8jGA7zxtcNmiFrHf+KAGpSBbU99fyY9DS1s38MOBJQU=
+github.com/moutend/go-hook v0.1.0/go.mod h1:rGHmQESfHpsztJ6jbDoaiCgesGdZttObFlY/ksHIlY4=
 github.com/moutend/go-wca v0.3.0 h1:IzhsQ44zBzMdT42xlBjiLSVya9cPYOoKx9E+yXVhFo8=
 github.com/moutend/go-wca v0.3.0/go.mod h1:7VrPO512jnjFGJ6rr+zOoCfiYjOHRPNfbttJuxAurcw=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

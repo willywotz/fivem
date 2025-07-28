@@ -10,6 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/moutend/go-hook/pkg/keyboard"
+	"github.com/moutend/go-hook/pkg/mouse"
+	"github.com/moutend/go-hook/pkg/types"
 )
 
 var (
@@ -28,7 +32,12 @@ type Status struct {
 	Version   string `json:"version"`
 }
 
-func UpdateClientStatus(from string) {
+type UpdateClientStatusCommand struct {
+	From       string
+	SinceInput time.Duration
+}
+
+func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 	failedf("Updating client status...")
 
 	machineID, _ := machineID()
@@ -57,7 +66,7 @@ func UpdateClientStatus(from string) {
 
 	status := "active"
 	lastActivityMu.Lock()
-	if time.Since(lastActivityTime) > 5*time.Minute {
+	if time.Since(lastActivityTime) > cmd.SinceInput {
 		status = "away"
 	}
 	lastActivityMu.Unlock()
@@ -68,7 +77,7 @@ func UpdateClientStatus(from string) {
 		Username:  username,
 		IP:        ip,
 		Country:   country,
-		From:      from,
+		From:      cmd.From,
 		Status:    status,
 		Version:   version,
 	}
@@ -107,49 +116,47 @@ func handleUpdateClientStatus(from string) {
 		return
 	}
 
-	// lastActivityMu.Lock()
-	// lastActivityTime = time.Now()
-	// lastActivityMu.Unlock()
+	lastActivityMu.Lock()
+	lastActivityTime = time.Now()
+	lastActivityMu.Unlock()
 
-	// keyboardChan := make(chan types.KeyboardEvent, 100)
-	// _ = keyboard.Install(nil, keyboardChan)
-	// defer func() { _ = keyboard.Uninstall() }()
+	keyboardChan := make(chan types.KeyboardEvent, 100)
+	_ = keyboard.Install(nil, keyboardChan)
+	defer func() { _ = keyboard.Uninstall() }()
 
-	// mouseChan := make(chan types.MouseEvent, 100)
-	// _ = mouse.Install(nil, mouseChan)
-	// defer func() { _ = mouse.Uninstall() }()
+	mouseChan := make(chan types.MouseEvent, 100)
+	_ = mouse.Install(nil, mouseChan)
+	defer func() { _ = mouse.Uninstall() }()
 
-	// timeChan := make(chan time.Time, 1)
+	timeChan := make(chan time.Time, 1)
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-keyboardChan:
-	// 			select {
-	// 			case timeChan <- time.Now():
-	// 			default:
-	// 			}
-	// 		case <-mouseChan:
-	// 			select {
-	// 			case timeChan <- time.Now():
-	// 			default:
-	// 			}
-	// 		}
-	// 	}
-	// }()
+	go func() {
+		for {
+			select {
+			case <-keyboardChan:
+				select {
+				case timeChan <- time.Now():
+				default:
+				}
+			case <-mouseChan:
+				select {
+				case timeChan <- time.Now():
+				default:
+				}
+			}
+		}
+	}()
 
-	// go func() {
-	// 	for t := range timeChan {
-	// 		lastActivityMu.Lock()
-	// 		lastActivityTime = t
-	// 		lastActivityMu.Unlock()
-	// 		time.Sleep(1 * time.Second)
-	// 	}
-	// }()
+	go func() {
+		for t := range timeChan {
+			lastActivityMu.Lock()
+			lastActivityTime = t
+			lastActivityMu.Unlock()
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	for {
-		UpdateClientStatus(from)
-
 		statusTickStr := GetTxt("status_tick", "300")
 		statusTickInt, _ := strconv.Atoi(statusTickStr)
 		statusTick := time.Duration(statusTickInt) * time.Second
@@ -157,6 +164,10 @@ func handleUpdateClientStatus(from string) {
 		if statusTick <= 0 {
 			statusTick = 300 * time.Second // Default to 5 minutes if invalid
 		}
+		UpdateClientStatus(&UpdateClientStatusCommand{
+			From:       from,
+			SinceInput: statusTick,
+		})
 
 		time.Sleep(statusTick)
 	}
