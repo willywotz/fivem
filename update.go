@@ -13,7 +13,7 @@ import (
 )
 
 func update() error {
-	if localDebug {
+	if localDebug || noUpdate {
 		return nil
 	}
 

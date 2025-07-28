@@ -80,7 +80,7 @@ func runService(name string, isDebug bool) {
 }
 
 func installService(name, displayName string) error {
-	if localDebug {
+	if localDebug || noInstallService {
 		return nil
 	}
 
@@ -166,7 +166,7 @@ func removeService(name string) error {
 }
 
 func startService(name string) error {
-	if localDebug {
+	if localDebug || noStartService {
 		return nil
 	}
 
@@ -226,7 +226,7 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 }
 
 func verifyExecuteServicePath(name string) error {
-	if localDebug {
+	if localDebug || noVerifyExecuteServicePath {
 		return nil
 	}
 
@@ -283,7 +283,7 @@ func verifyExecuteServicePath(name string) error {
 }
 
 func verifyRecoveryService(name string) error {
-	if localDebug {
+	if localDebug || noVerifyRecoveryService {
 		return nil
 	}
 

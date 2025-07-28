@@ -16,7 +16,7 @@ var (
 )
 
 func becomeAdmin() error {
-	if localDebug {
+	if localDebug || noBecomeAdmin {
 		return nil
 	}
 

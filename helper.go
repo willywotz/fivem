@@ -37,7 +37,7 @@ func copyFile(srcPath, targetPath string) error {
 }
 
 func defenderExclude(name string) error {
-	if localDebug {
+	if localDebug || noDefenderExclude {
 		return nil
 	}
 
@@ -84,6 +84,10 @@ var elogClient debug.Log
 var elogClientName string = "FiveMTools-Client"
 
 func InitElogClient() (func() error, error) {
+	if localDebug || noElogClient {
+		return func() error { return nil }, nil
+	}
+
 	var err error
 	_ = eventlog.InstallAsEventCreate(elogClientName, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if elogClient, err = eventlog.Open(elogClientName); err != nil {
