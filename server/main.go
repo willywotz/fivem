@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -154,7 +153,7 @@ func main() {
 			defer func() { _ = r.Body.Close() }()
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
-				fmt.Fprintf(os.Stderr, "[%v]: Failed to decode request body: %v\n", hostname, err)
+				log.Printf("[%v]: Failed to decode request body: %v\n", hostname, err)
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
@@ -163,7 +162,7 @@ func main() {
 			newStatus.Time = time.Now()
 			buf := bytes.NewBuffer(nil)
 			if err := json.NewEncoder(buf).Encode(newStatus); err != nil {
-				fmt.Fprintf(os.Stderr, "[%v]: Failed to encode status data: %v\n", newStatus.Hostname, err)
+				log.Printf("[%v]: Failed to encode status data: %v\n", newStatus.Hostname, err)
 				http.Error(w, "Failed to encode status data", http.StatusInternalServerError)
 				return
 			}
@@ -231,7 +230,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "max-age=0")
 		if err := json.NewEncoder(w).Encode(data); err != nil {
-			fmt.Printf("Failed to encode status: %v\n", err)
+			log.Printf("Failed to encode status: %v\n", err)
 			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
 			return
 		}
