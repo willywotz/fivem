@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -180,13 +180,57 @@ func main() {
 		statusMu.Lock()
 		defer statusMu.Unlock()
 
-		tmpStatus := make([]Status, len(status))
-		copy(tmpStatus, status)
-		slices.Reverse(tmpStatus)
+		var data struct {
+			Items      []Status `json:"items"`
+			TotalItems int      `json:"total_items"`
+			Page       int      `json:"page"`
+			PerPage    int      `json:"per_page"`
+			Reversed   bool     `json:"reversed"`
+		}
+
+		data.Page = 1
+		data.PerPage = 100
+		data.Reversed = true
+
+		if r.URL.Query().Get("page") != "" {
+			page, err := strconv.Atoi(r.URL.Query().Get("page"))
+			if err == nil && page > 0 {
+				data.Page = page
+			}
+		}
+
+		if r.URL.Query().Get("per_page") != "" {
+			perPage, err := strconv.Atoi(r.URL.Query().Get("per_page"))
+			if err == nil && perPage > 0 && perPage <= 100 {
+				data.PerPage = perPage
+			}
+		}
+
+		if r.URL.Query().Get("reversed") == "false" {
+			data.Reversed = false
+		}
+
+		start := (data.Page - 1) * data.PerPage
+		end := start + data.PerPage
+		if start >= len(status) {
+			data.Items = []Status{}
+		} else if end > len(status) {
+			data.Items = status[start:]
+		} else {
+			data.Items = status[start:end]
+		}
+
+		data.TotalItems = len(status)
+
+		if data.Reversed {
+			for i, j := 0, len(data.Items)-1; i < j; i, j = i+1, j-1 {
+				data.Items[i], data.Items[j] = data.Items[j], data.Items[i]
+			}
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "max-age=0")
-		if err := json.NewEncoder(w).Encode(tmpStatus); err != nil {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
 			fmt.Printf("Failed to encode status: %v\n", err)
 			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
 			return
