@@ -39,7 +39,7 @@ func machineID() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open registry key: %w", err)
 	}
-	defer k.Close()
+	defer func() { _ = k.Close() }()
 
 	machineGuid, _, err := k.GetStringValue("MachineGuid")
 	if err != nil {

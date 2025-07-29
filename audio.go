@@ -100,7 +100,7 @@ func getAudioInputDevices() ([]AudioDevice, error) {
 
 func setAudioVolume(endpointId string, volumeLevel float32) error {
 	if volumeLevel < 0 || volumeLevel > 1 {
-		return fmt.Errorf("Volume level must be between 0.0 and 1.0, got %f", volumeLevel)
+		return fmt.Errorf("volume level must be between 0.0 and 1.0, got %f", volumeLevel)
 	}
 
 	var mmde *wca.IMMDeviceEnumerator

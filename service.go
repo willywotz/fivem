@@ -66,7 +66,7 @@ func runService(name string, isDebug bool) {
 	} else if elog, err = eventlog.Open(name); err != nil {
 		elog = debug.New(name)
 	}
-	defer elog.Close()
+	defer func() { _ = elog.Close() }()
 
 	run := svc.Run
 	if isDebug {
@@ -91,7 +91,7 @@ func installService(name, displayName string) error {
 	defer func() { _ = m.Disconnect() }()
 	s, err := m.OpenService(name)
 	if err == nil {
-		s.Close()
+		_ = s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
 
@@ -125,7 +125,7 @@ func installService(name, displayName string) error {
 	if err != nil {
 		return err
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	err = s.SetRecoveryActions([]mgr.RecoveryAction{
 		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},  // Restart after 5 seconds on 1st failure
 		{Type: mgr.ServiceRestart, Delay: 10 * time.Second}, // Restart after 10 seconds on 2nd failure
@@ -149,7 +149,7 @@ func removeService(name string) error {
 	if err != nil {
 		return fmt.Errorf("service %s is not installed", name)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	if status, err := s.Query(); err != nil {
 		return fmt.Errorf("could not retrieve service status: %v", err)
 	} else if status.State != svc.Stopped {
@@ -179,7 +179,7 @@ func startService(name string) error {
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	if status, err := s.Query(); err != nil {
 		return fmt.Errorf("could not retrieve service status: %v", err)
 	} else if status.State == svc.Running {
@@ -206,7 +206,7 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 	if err != nil {
 		return fmt.Errorf("could not access service: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	status, err := s.Control(c)
 	if err != nil {
 		return fmt.Errorf("could not send control=%d: %v", c, err)
@@ -263,7 +263,7 @@ func verifyExecuteServicePath(name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open service %s: %w", name, err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	config, err := s.Config()
 	if err != nil {
@@ -297,7 +297,7 @@ func verifyRecoveryService(name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open service %s: %w", name, err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	recoveryActions, err := s.RecoveryActions()
 	if err != nil {

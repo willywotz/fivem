@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"image"
+	"image/png"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kbinani/screenshot"
 	"github.com/moutend/go-hook/pkg/keyboard"
 	"github.com/moutend/go-hook/pkg/mouse"
 	"github.com/moutend/go-hook/pkg/types"
@@ -225,4 +230,42 @@ func getOrDefaultMap[T any](m map[string]T, key string, defaultValue ...T) T {
 	}
 	var zeroValue T
 	return zeroValue
+}
+
+type CaptureScreenshotItem struct {
+	DisplayIndex  int             `json:"display_index"`
+	DisplayBounds image.Rectangle `json:"display_bounds"`
+	Image         string          `json:"image"`
+	Error         string          `json:"error"`
+}
+
+func CaptureScreenshot() ([]*CaptureScreenshotItem, error) {
+	n := screenshot.NumActiveDisplays()
+	results := make([]*CaptureScreenshotItem, 0)
+
+	for i := 0; i < n; i++ {
+		r := &CaptureScreenshotItem{
+			DisplayIndex:  i,
+			DisplayBounds: screenshot.GetDisplayBounds(i),
+		}
+
+		img, err := screenshot.CaptureRect(r.DisplayBounds)
+		if err != nil {
+			r.Error = fmt.Sprintf("failed to capture screenshot: %v", err)
+			results = append(results, r)
+			continue
+		}
+
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			r.Error = fmt.Sprintf("failed to encode screenshot: %v", err)
+			results = append(results, r)
+			continue
+		}
+
+		r.Image = base64.StdEncoding.EncodeToString(buf.Bytes())
+		results = append(results, r)
+	}
+
+	return results, nil
 }
