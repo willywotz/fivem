@@ -81,7 +81,7 @@ func main() {
 	defer func() { _ = elogClientCloser() }()
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		failedf("Failed to initialize OLE: %v", err)
+		failedf("failed to initialize OLE: %v", err)
 		return
 	}
 	defer ole.CoUninitialize()

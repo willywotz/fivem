@@ -48,7 +48,7 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 	country := "unknown"
 	// ipResp, err := http.Get("https://api.country.is/")
 	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "Failed to get public IP: %v\n", err)
+	// 	fmt.Fprintf(os.Stderr, "failed to get public IP: %v\n", err)
 	// }
 	// defer func() { _ = ipResp.Body.Close() }()
 	// if ipResp.StatusCode == http.StatusOK {
@@ -57,7 +57,7 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 	// 		Country string `json:"country"`
 	// 	}
 	// 	if err := json.NewDecoder(ipResp.Body).Decode(&ipData); err != nil {
-	// 		fmt.Fprintf(os.Stderr, "Failed to decode IP response: %v\n", err)
+	// 		fmt.Fprintf(os.Stderr, "failed to decode IP response: %v\n", err)
 	// 	} else {
 	// 		ip = ipData.IP
 	// 		country = ipData.Country
@@ -84,14 +84,14 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
-		failedf("Failed to encode status data: %v", err)
+		failedf("failed to encode status data: %v", err)
 		return
 	}
 
 	baseURL := GetTxt("base_url", "http://localhost:8080")
 	r, err := http.NewRequest(http.MethodPost, baseURL+"/status", body)
 	if err != nil {
-		failedf("Failed to create request: %v", err)
+		failedf("failed to create request: %v", err)
 		return
 	}
 
@@ -101,12 +101,12 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
-		failedf("Failed to post status: %v", err)
+		failedf("failed to post status: %v", err)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
-		failedf("Failed to post status, got status code: %d", resp.StatusCode)
+		failedf("failed to post status, got status code: %d", resp.StatusCode)
 		return
 	}
 }
@@ -191,7 +191,7 @@ func GetTxt(name string, defaultValue ...string) string {
 	localMapTxts := make(map[string]string)
 	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
 	if err != nil {
-		failedf("Failed to lookup TXT records: %v", err)
+		failedf("failed to lookup TXT records: %v", err)
 		return getOrDefaultMap(localMapTxts, name, defaultValue...)
 	}
 

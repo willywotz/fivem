@@ -37,7 +37,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		log.Printf("failed to upgrade connection: %v", err)
 		return
 	}
 	defer func() {
@@ -127,7 +127,7 @@ func main() {
 
 		htmlContent, err := staticFS.ReadFile("static/index.html")
 		if err != nil {
-			http.Error(w, "Failed to load index.html", http.StatusInternalServerError)
+			http.Error(w, "failed to load index.html", http.StatusInternalServerError)
 			return
 		}
 
@@ -156,7 +156,7 @@ func main() {
 			defer func() { _ = r.Body.Close() }()
 			if err := json.NewDecoder(r.Body).Decode(&newStatus); err != nil {
 				hostname := r.Header.Get("Client-Hostname")
-				log.Printf("[%v]: Failed to decode request body: %v\n", hostname, err)
+				log.Printf("[%v]: failed to decode request body: %v\n", hostname, err)
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
@@ -165,8 +165,8 @@ func main() {
 			newStatus.Time = time.Now()
 			buf := bytes.NewBuffer(nil)
 			if err := json.NewEncoder(buf).Encode(newStatus); err != nil {
-				log.Printf("[%v]: Failed to encode status data: %v\n", newStatus.Hostname, err)
-				http.Error(w, "Failed to encode status data", http.StatusInternalServerError)
+				log.Printf("[%v]: failed to encode status data: %v\n", newStatus.Hostname, err)
+				http.Error(w, "failed to encode status data", http.StatusInternalServerError)
 				return
 			}
 			wsChannel <- buf.String()
@@ -236,8 +236,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "max-age=0")
 		if err := json.NewEncoder(w).Encode(data); err != nil {
-			log.Printf("Failed to encode status: %v\n", err)
-			http.Error(w, "Failed to encode status", http.StatusInternalServerError)
+			log.Printf("failed to encode status: %v\n", err)
+			http.Error(w, "failed to encode status", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -247,7 +247,7 @@ func main() {
 	doGetDownloadURL := func() {
 		resp, err := http.Get("https://api.github.com/repos/willywotz/fivem/releases/latest")
 		if err != nil {
-			log.Printf("Failed to fetch latest release: %v", err)
+			log.Printf("failed to fetch latest release: %v", err)
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
@@ -265,7 +265,7 @@ func main() {
 		}
 
 		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-			log.Printf("Failed to decode response: %v", err)
+			log.Printf("failed to decode response: %v", err)
 			return
 		}
 
