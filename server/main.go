@@ -45,6 +45,17 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		_ = conn.Close()
 	}()
 
+	conn.SetPongHandler(func(appData string) error {
+		log.Println("Received pong:", appData)
+		return nil
+	})
+
+	go func() {
+		for range time.Tick(5 * time.Second) {
+			_ = conn.WriteMessage(websocket.PingMessage, []byte("ping"))
+		}
+	}()
+
 	wsConnections[conn] = r.URL.Query().Get("b") == "true"
 	log.Printf("Client connected from %s", r.RemoteAddr)
 
