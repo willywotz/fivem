@@ -42,10 +42,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		delete(wsConnections, conn)
-		conn.Close()
+		_ = conn.Close()
 	}()
 
-	wsConnections[conn] = true
+	wsConnections[conn] = r.URL.Query().Get("b") == "true"
 	log.Printf("Client connected from %s", r.RemoteAddr)
 
 	// Loop to read and write messages
@@ -137,6 +137,9 @@ func main() {
 	go func() {
 		for msg := range wsChannel {
 			for conn := range wsConnections {
+				if !wsConnections[conn] {
+					continue // Skip connections that are not in broadcast mode
+				}
 				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 					log.Printf("Error sending message to client: %v", err)
 				}
@@ -247,7 +250,7 @@ func main() {
 			log.Printf("Failed to fetch latest release: %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("Unexpected status code: %d", resp.StatusCode)
