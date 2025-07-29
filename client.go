@@ -239,9 +239,17 @@ type CaptureScreenshotItem struct {
 	Error         string          `json:"error"`
 }
 
-func CaptureScreenshot() ([]*CaptureScreenshotItem, error) {
+func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
+	results = make([]*CaptureScreenshotItem, 0)
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("CaptureScreenshot panicked: %v", r)
+			failedf("CaptureScreenshot panicked: %v", r)
+		}
+	}()
+
 	n := screenshot.NumActiveDisplays()
-	results := make([]*CaptureScreenshotItem, 0)
 
 	for i := 0; i < n; i++ {
 		r := &CaptureScreenshotItem{
