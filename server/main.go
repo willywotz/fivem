@@ -46,7 +46,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	conn.SetPongHandler(func(appData string) error {
-		log.Println("Received pong:", appData)
 		return nil
 	})
 
