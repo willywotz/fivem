@@ -61,7 +61,7 @@
             updateStatus('Reconnecting...');
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             // Use window.location.host for relative path, or hardcode your domain:
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            const wsUrl = `${protocol}//${window.location.host}/ws?b=true`;
             // For direct testing against your specific domain:
             // const wsUrl = `wss://fivem-tools.willywotz.com/ws`;
 
@@ -104,6 +104,10 @@
                 if (event.code === 1000 || event.code >= 3000) { // Custom codes can indicate intentional close
                     addMessage('Connection closed cleanly or intentionally. No auto-reconnect.', 'system');
                     return;
+                }
+
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    reconnectAttempts = 0; // Reset attempts after max reached
                 }
 
                 // Attempt to reconnect after a delay, with exponential backoff

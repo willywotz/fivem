@@ -29,12 +29,18 @@ var upgrader = websocket.Upgrader{
 }
 
 var (
-	wsConnections = make(map[*websocket.Conn]bool)
-	wsChannel     = make(chan string, 100)
+	wsConnections               = make(map[*websocket.Conn]bool)
+	wsConnectionsMachineID      = make(map[string]*websocket.Conn)
+	wsConnectionsMachineIDMutex = &sync.Mutex{}
+	wsChannel                   = make(chan Message, 100)
 )
 
+type Message struct {
+	Type int           `json:"type"`
+	Data *bytes.Buffer `json:"data"`
+}
+
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("failed to upgrade connection: %v", err)
@@ -58,40 +64,67 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	wsConnections[conn] = r.URL.Query().Get("b") == "true"
 	log.Printf("Client connected from %s", r.RemoteAddr)
 
-	// Loop to read and write messages
 	for {
-		// Read message from client
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("Error reading message: %v", err)
-			break // Exit loop on error (e.g., client disconnected)
-		}
-
-		if p != nil && string(p) == "ping" {
-			// Respond to ping with pong
-			if err := conn.WriteMessage(websocket.PongMessage, []byte("pong")); err != nil {
-				log.Printf("Error writing pong message: %v", err)
-				break // Exit loop on error
-			}
-
-			continue // Skip further processing for ping messages
-		}
-
-		log.Printf("Received message from client: %s (Type: %d)", p, messageType)
-
-		// Echo the message back to the client
-		echoMessage := fmt.Sprintf("Server received: %s at %s", p, time.Now().Format(time.RFC3339))
-		if err := conn.WriteMessage(messageType, []byte(echoMessage)); err != nil {
-			log.Printf("Error writing message: %v", err)
-			break // Exit loop on error
-		}
-
-		// Optional: Send a periodic message from server to client
-		time.Sleep(1 * time.Second)
-		if err := conn.WriteMessage(websocket.TextMessage, []byte("Hello from server!")); err != nil {
-			log.Printf("Error sending periodic message: %v", err)
 			break
 		}
+
+		if messageType == websocket.TextMessage && p != nil && string(p[:4]) == "ping" {
+			if err := conn.WriteMessage(websocket.PongMessage, []byte("pong")); err != nil {
+				log.Printf("Error writing pong message: %v", err)
+				break
+			}
+			continue
+		}
+
+		if messageType == websocket.TextMessage {
+			var data struct {
+				Action    string `json:"action"`
+				MachineID string `json:"machine_id"`
+				Hostname  string `json:"hostname"`
+			}
+
+			if err := json.Unmarshal(p, &data); err != nil {
+				continue
+			}
+
+			if data.Action == "register" && data.MachineID != "" {
+				wsConnectionsMachineIDMutex.Lock()
+				wsConnectionsMachineID[data.MachineID] = conn
+				wsConnectionsMachineIDMutex.Unlock()
+				log.Printf("Registered machine ID: %s", data.MachineID)
+			} else if data.Action == "unregister" && data.MachineID != "" {
+				wsConnectionsMachineIDMutex.Lock()
+				delete(wsConnectionsMachineID, data.MachineID)
+				wsConnectionsMachineIDMutex.Unlock()
+				log.Printf("Unregistered machine ID: %s", data.MachineID)
+			}
+		}
+
+		// if messageType == websocket.TextMessage && p != nil && string(p[:10]) == "screenshot" {
+		// 	parts := strings.Split(string(p[10:]), " ")
+		// 	if len(parts) < 2 {
+		// 		_ = conn.WriteMessage(websocket.TextMessage, []byte("Invalid screenshot command"))
+		// 		continue
+		// 	}
+		// 	// if parts[0] == "all" {
+		// 	// 	wsChannel <- Message{
+		// 	// 		Type: websocket.TextMessage,
+		// 	// 		Data: []byte("screenshot"),
+		// 	// 	}
+		// 	// 	continue
+		// 	// }
+		// 	for _, ps := range parts {
+		// 		subParts := strings.Split(ps, ":")
+		// 		if len(subParts) != 2 {
+		// 			continue
+		// 		}
+		// 		if subParts[0] == "machine_id" {
+		// 		}
+		// 	}
+		// }
 	}
 
 	log.Printf("Client disconnected from %s", r.RemoteAddr)
@@ -148,9 +181,9 @@ func main() {
 		for msg := range wsChannel {
 			for conn := range wsConnections {
 				if !wsConnections[conn] {
-					continue // Skip connections that are not in broadcast mode
+					continue
 				}
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				if err := conn.WriteMessage(msg.Type, msg.Data.Bytes()); err != nil {
 					log.Printf("Error sending message to client: %v", err)
 				}
 			}
@@ -179,7 +212,10 @@ func main() {
 				http.Error(w, "failed to encode status data", http.StatusInternalServerError)
 				return
 			}
-			wsChannel <- buf.String()
+			wsChannel <- Message{
+				Type: websocket.TextMessage,
+				Data: buf,
+			}
 			status = append(status, newStatus)
 			w.WriteHeader(http.StatusCreated)
 			return
