@@ -94,14 +94,15 @@
                     }
                     if (data.type === 'screenshot') {
                         var results = data.data || [];
-                        if (results.length === 0) {
-                            addMessage('No screenshot results found.', 'info');
-                            return;
-                        }
-                        results = results.map(item => {
-                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}"></div></div>`;
-                        })
-                        addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
+                        console.log('Received screenshot data:', results);
+                    //     if (results.length === 0) {
+                    //         addMessage('No screenshot results found.', 'info');
+                    //         return;
+                    //     }
+                    //     results = results.map(item => {
+                    //         return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}"></div></div>`;
+                    //     })
+                    //     addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
                     }
                 } catch (e) {
                     addMessage(`Received: ${event.data}`, 'server');
