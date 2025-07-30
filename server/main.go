@@ -100,7 +100,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Machine ID not found"))
 					continue
 				}
-				if err := targetConn.WriteMessage(websocket.TextMessage, []byte("screenshot")); err != nil {
+				if err := targetConn.WriteMessage(websocket.TextMessage, []byte("take_screenshot")); err != nil {
 					log.Printf("Error sending screenshot command to machine ID %s: %v", targetMachineID, err)
 					_ = conn.WriteMessage(websocket.TextMessage, []byte("Failed to send screenshot command"))
 					continue
