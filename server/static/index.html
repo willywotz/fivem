@@ -52,29 +52,6 @@
             }
         }
 
-        window.processMessage = function (event) {
-            if (event.data === "pong") {
-                console.log("Received pong from server");
-                return; // Ignore pong messages
-            }
-
-            try {
-                const data = JSON.parse(event.data);
-                console.log('Received data:', data);
-                // if (data.error && data.error !== '') {
-                //     addMessage(`Error: ${data.error}`, 'error');
-                //     return;
-                // }
-                // if (data.type === 'screenshot') {
-                //     var results = data.data || [];
-                //     console.log('Received screenshot data:', results);
-                //     // Process screenshot data here
-                // }
-            } catch (e) {
-                addMessage(`Received: ${event.data}`, 'server');
-            }
-        }
-
         function connectWebSocket() {
             if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
                 // Already connecting or open, do nothing
@@ -103,7 +80,28 @@
                 setInterval(() => wsAlive && ws.send("ping"), 5000);
             };
 
-            ws.onmessage = window.processMessage;
+            ws.onmessage = function (event) {
+                if (event.data === "pong") {
+                    console.log("Received pong from server");
+                    return; // Ignore pong messages
+                }
+
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received data:', data);
+                    // if (data.error && data.error !== '') {
+                    //     addMessage(`Error: ${data.error}`, 'error');
+                    //     return;
+                    // }
+                    // if (data.type === 'screenshot') {
+                    //     var results = data.data || [];
+                    //     console.log('Received screenshot data:', results);
+                    //     // Process screenshot data here
+                    // }
+                } catch (e) {
+                    addMessage(`Received: ${event.data}`, 'server');
+                }
+            };
 
             ws.onclose = function(event) {
                 wsAlive = false; // Clear alive flag
