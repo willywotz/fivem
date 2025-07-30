@@ -3,9 +3,10 @@
 <head>
     <title>Go WebSocket Client with Auto Reconnect</title>
     <style>
+        * { box-sizing: border-box; }
         body { font-family: sans-serif; }
         #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: scroll; margin-bottom: 10px; max-width: 800px; }
-        input[type="text"] { width: 80%; padding: 8px; }
+        input[type="text"] { flex-grow: 1; padding: 8px; }
         button { padding: 8px 15px; }
         .status-badge {
             padding: 5px 10px;
@@ -23,7 +24,7 @@
     <h1>Go WebSocket Demo <span id="connectionStatus" class="status-disconnected">Disconnected</span></h1>
     <p>This client will connect to <code>wss://fivem-tools.willywotz.com/ws</code> (or <code>wss://</code>).</p>
     <div id="messages"></div>
-    <div style="max-width: 800px;">
+    <div style="max-width: 800px;display: flex;justify-content: space-between;gap: 16px;">
         <input type="text" id="messageInput" placeholder="Type a message...">
         <button onclick="sendMessage()">Send</button>
         <button onclick="closeConnection(1000, 'User initiated close')">Close</button>
