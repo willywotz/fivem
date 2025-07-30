@@ -107,10 +107,20 @@
                             return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}" style="height: auto;max-width: 100%;"></div></div>`;
                         })
                         addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
+                        return;
+                    }
+                    if (data.action === 'register') {
+                        addMessage(`Machine registered: ${data.machine_id || ''}, Hostname: ${data.hostname || ''}, Username: ${data.username || ''}`, 'system');
+                        return;
+                    }
+                    if (data.action === 'unregister') {
+                        addMessage(`Machine unregistered: ${data.machine_id || ''}`, 'system');
+                        return;
                     }
                 } catch (e) {
-                    addMessage(`Received: ${event.data}`, 'server');
                 }
+
+                addMessage(`Received: ${event.data}`, 'server');
             };
 
             ws.onclose = function(event) {
@@ -185,7 +195,7 @@
         function addMessage(message, type) {
             const div = document.createElement('div');
             div.innerHTML = message;
-            div.setAttribute('style', 'padding: 1rem 0;')
+            div.setAttribute('style', 'padding: 16px 0;')
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             console.log(`Message added: ${message.substring(0, 100)}`);
