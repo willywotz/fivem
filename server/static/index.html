@@ -86,8 +86,26 @@
                     return; // Ignore pong messages
                 }
 
-                addMessage(`Received: ${event.data}`, 'server');
-                console.log('Message from server:', event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.error && data.error !== '') {
+                        addMessage(`Error: ${data.error}`, 'error');
+                        return
+                    }
+                    if (data.type === 'screenshot') {
+                        var results = data.data || [];
+                        if (results.length === 0) {
+                            addMessage('No screenshot results found.', 'info');
+                            return;
+                        }
+                        results = results.map(item => {
+                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}"></div></div>`;
+                        })
+                        addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
+                    }
+                } catch (e) {
+                    addMessage(`Received: ${event.data}`, 'server');
+                }
             };
 
             ws.onclose = function(event) {
@@ -153,12 +171,12 @@
         }
 
         function addMessage(message, type) {
-            const p = document.createElement('p');
-            p.textContent = message;
-            p.className = type;
-            messagesDiv.appendChild(p);
+            const div = document.createElement('div');
+            div.innerHTML = message;
+            div.setAttribute('style', 'padding: 1rem 0;')
+            messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            console.log(`Message added: ${message}`);
+            console.log(`Message added: ${message.substring(0, 100)}`);
 
             if (messagesDiv.children.length > 200) {
                 messagesDiv.removeChild(messagesDiv.children[0]);
