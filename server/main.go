@@ -19,8 +19,8 @@ import (
 var staticFS embed.FS
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  10 << 20,
-	WriteBufferSize: 10 << 20,
+	// ReadBufferSize:  1024,
+	// WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow all origins for simplicity in example.
 		// In production, tighten this for security!
@@ -51,8 +51,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		delete(wsConnections, conn)
 		_ = conn.Close()
 	}()
-
-	conn.SetReadLimit(10 << 20) // 10MB, adjust as needed
 
 	conn.SetPongHandler(func(appData string) error {
 		return nil
