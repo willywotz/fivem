@@ -144,6 +144,11 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 					Type: websocket.TextMessage,
 					Data: bytes.NewBufferString(fmt.Sprintf("Machine %s unregistered", data.MachineID)),
 				}
+			} else if data.Action == "screenshot" {
+				wsChannel <- Message{
+					Type: websocket.TextMessage,
+					Data: bytes.NewBuffer(p),
+				}
 			}
 		}
 	}
