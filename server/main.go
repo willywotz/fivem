@@ -145,6 +145,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 					Data: bytes.NewBufferString(fmt.Sprintf("Machine %s unregistered", data.MachineID)),
 				}
 			} else if data.Action == "screenshot" {
+				log.Printf("Received screenshot data from %s: %v", data.MachineID, data.Data)
 				wsChannel <- Message{
 					Type: websocket.TextMessage,
 					Data: bytes.NewBuffer(p),
