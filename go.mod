@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/creativeprojects/go-selfupdate v1.5.0
 	github.com/go-ole/go-ole v1.3.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/josephspurrier/goversioninfo v1.5.0
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/moutend/go-hook v0.1.0
