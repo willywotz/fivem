@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Go WebSocket Client with Auto Reconnect</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: sans-serif; }
-        #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: scroll; margin-bottom: 10px; max-width: 800px; }
+        #messages { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: calc(100vh - 220px); overflow-y: scroll; margin-bottom: 10px; max-width: 800px; }
         input[type="text"] { flex-grow: 1; padding: 8px; }
         button { padding: 8px 15px; }
         .status-badge {
