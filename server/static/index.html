@@ -109,14 +109,6 @@
                         addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
                         return;
                     }
-                    if (data.action === 'register') {
-                        addMessage(`Machine registered: ${data.machine_id || ''}, Hostname: ${data.hostname || ''}, Username: ${data.username || ''}`, 'system');
-                        return;
-                    }
-                    if (data.action === 'unregister') {
-                        addMessage(`Machine unregistered: ${data.machine_id || ''}`, 'system');
-                        return;
-                    }
                 } catch (e) {
                 }
 
