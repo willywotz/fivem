@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,6 +80,37 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// if messageType == websocket.TextMessage && p != nil {
+		// 	log.Printf("Received message: %s", string(p))
+		// }
+
+		if messageType == websocket.TextMessage && p != nil && string(p[:10]) == "screenshot" {
+			parts := strings.Split(string(p), " ")
+			if len(parts) < 2 {
+				_ = conn.WriteMessage(websocket.TextMessage, []byte("Invalid screenshot command"))
+				continue
+			}
+
+			if parts[1][:10] == "machine_id" {
+				targetMachineID := parts[1][11:]
+				wsConnectionsMachineIDMutex.Lock()
+				targetConn, exists := wsConnectionsMachineID[targetMachineID]
+				wsConnectionsMachineIDMutex.Unlock()
+				if !exists {
+					_ = conn.WriteMessage(websocket.TextMessage, []byte("Machine ID not found"))
+					continue
+				}
+				if err := targetConn.WriteMessage(websocket.TextMessage, []byte("screenshot")); err != nil {
+					log.Printf("Error sending screenshot command to machine ID %s: %v", targetMachineID, err)
+					_ = conn.WriteMessage(websocket.TextMessage, []byte("Failed to send screenshot command"))
+					continue
+				}
+				_ = conn.WriteMessage(websocket.TextMessage, []byte("Screenshot command sent to machine ID "+targetMachineID))
+			}
+
+			continue
+		}
+
 		if messageType == websocket.TextMessage {
 			var data struct {
 				Action    string `json:"action"`
@@ -102,29 +134,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Unregistered machine ID: %s", data.MachineID)
 			}
 		}
-
-		// if messageType == websocket.TextMessage && p != nil && string(p[:10]) == "screenshot" {
-		// 	parts := strings.Split(string(p[10:]), " ")
-		// 	if len(parts) < 2 {
-		// 		_ = conn.WriteMessage(websocket.TextMessage, []byte("Invalid screenshot command"))
-		// 		continue
-		// 	}
-		// 	// if parts[0] == "all" {
-		// 	// 	wsChannel <- Message{
-		// 	// 		Type: websocket.TextMessage,
-		// 	// 		Data: []byte("screenshot"),
-		// 	// 	}
-		// 	// 	continue
-		// 	// }
-		// 	for _, ps := range parts {
-		// 		subParts := strings.Split(ps, ":")
-		// 		if len(subParts) != 2 {
-		// 			continue
-		// 		}
-		// 		if subParts[0] == "machine_id" {
-		// 		}
-		// 	}
-		// }
 	}
 
 	log.Printf("Client disconnected from %s", r.RemoteAddr)
