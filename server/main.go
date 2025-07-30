@@ -117,6 +117,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				MachineID string `json:"machine_id"`
 				Hostname  string `json:"hostname"`
 				Username  string `json:"username"`
+
+				Data  any    `json:"data"`
+				Error string `json:"error"`
 			}
 
 			if err := json.Unmarshal(p, &data); err != nil {
