@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"strings"
 
 	"golang.org/x/sys/windows/registry"
@@ -46,6 +47,12 @@ func machineID() (string, error) {
 		return "", fmt.Errorf("failed to get MachineGuid: %w", err)
 	}
 	ss = append(ss, machineGuid)
+
+	localHostname, _ := os.Hostname()
+	ss = append(ss, localHostname)
+
+	localUsername, _ := os.LookupEnv("USERNAME")
+	ss = append(ss, localUsername)
 
 	h := sha256.New()
 	h.Write([]byte(strings.Join(ss, "")))

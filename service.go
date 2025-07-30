@@ -26,6 +26,7 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	changes <- svc.Status{State: svc.StartPending}
 
 	go handleUpdateClientStatus("service")
+	go handleWebsocket("service")
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))

@@ -119,14 +119,14 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 	}
 }
 
-func handleWebsocket() {
+func handleWebsocket(from string) {
 	defer func() {
 		if r := recover(); r != nil {
 			failedf("WebSocket handler panicked: %v", r)
 		}
 
 		time.Sleep(5 * time.Second)
-		handleWebsocket()
+		handleWebsocket(from)
 	}()
 
 	u := url.URL{Scheme: "wss", Host: "fivem-tools.willywotz.com", Path: "/ws"}
@@ -157,6 +157,7 @@ func handleWebsocket() {
 		"machine_id": localMachineID,
 		"hostname":   localHostname,
 		"username":   localUsername,
+		"from":       from,
 	})
 	log.Printf("Registered machine ID: %s, hostname: %s, username: %s", localMachineID, localHostname, localUsername)
 
