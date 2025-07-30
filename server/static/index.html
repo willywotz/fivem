@@ -166,6 +166,13 @@
             }
         }
 
+        messageInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
         function closeConnection(code = 1000, reason = "Client initiated close") {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 addMessage(`Closing connection intentionally (Code: ${code}, Reason: ${reason})...`, 'system');
