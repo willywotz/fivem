@@ -116,6 +116,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				Action    string `json:"action"`
 				MachineID string `json:"machine_id"`
 				Hostname  string `json:"hostname"`
+				Username  string `json:"username"`
 			}
 
 			if err := json.Unmarshal(p, &data); err != nil {
@@ -127,11 +128,19 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				wsConnectionsMachineID[data.MachineID] = conn
 				wsConnectionsMachineIDMutex.Unlock()
 				log.Printf("Registered machine ID: %s", data.MachineID)
+				wsChannel <- Message{
+					Type: websocket.TextMessage,
+					Data: bytes.NewBufferString(fmt.Sprintf("Machine %s registered with hostname %s, username %s", data.MachineID, data.Hostname, data.Username)),
+				}
 			} else if data.Action == "unregister" && data.MachineID != "" {
 				wsConnectionsMachineIDMutex.Lock()
 				delete(wsConnectionsMachineID, data.MachineID)
 				wsConnectionsMachineIDMutex.Unlock()
 				log.Printf("Unregistered machine ID: %s", data.MachineID)
+				wsChannel <- Message{
+					Type: websocket.TextMessage,
+					Data: bytes.NewBufferString(fmt.Sprintf("Machine %s unregistered", data.MachineID)),
+				}
 			}
 		}
 	}
