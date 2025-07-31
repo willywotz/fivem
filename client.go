@@ -174,7 +174,7 @@ func handleWebsocket(from string) {
 		if messageType == websocket.TextMessage && p != nil {
 			// log.Printf("Received message: %s", string(p))
 
-			if string(p[:15]) == "take_screenshot" {
+			if string(p[:15]) == "take_screenshot" && from == "client" {
 				log.Println("Taking screenshot...")
 
 				var data struct {
