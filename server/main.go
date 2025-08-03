@@ -366,7 +366,7 @@ func main() {
 		}
 
 		if len(players) == 0 {
-			_ = tmpl.Execute(w, map[string]any{"message": "No players online"})
+			_ = tmpl.Execute(w, map[string]any{"error": "No players online"})
 			return
 		}
 
