@@ -329,6 +329,15 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/players.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
+		playerData, err := GetPlayerData()
+		data := map[string]any{"players": playerData, "error": err}
+		_ = json.NewEncoder(w).Encode(data)
+	})
+
 	playerHtmlContent, _ := staticFS.ReadFile("static/players.html")
 	playerTemplate, _ := template.New("players").Funcs(template.FuncMap{
 		"json": func(v any) string {
