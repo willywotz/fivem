@@ -335,20 +335,19 @@ func main() {
 
 		htmlContent, _ := staticFS.ReadFile("static/players.html")
 		tmpl, _ := template.New("players").Parse(string(htmlContent))
-		_ = tmpl.Execute(w, nil)
 
 		url := "http://212.80.214.124:30120/players.json"
 		resp, err := http.Get(url)
 		if err != nil {
 			log.Printf("failed to fetch players: %v", err)
-			_ = tmpl.Execute(w, map[string]any{"error": "Failed to fetch players data"})
+			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to fetch players data"})
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("Unexpected status code: %d", resp.StatusCode)
-			_ = tmpl.Execute(w, map[string]any{"error": "Failed to fetch players data"})
+			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to fetch players data"})
 			return
 		}
 
@@ -361,12 +360,12 @@ func main() {
 
 		if err := json.NewDecoder(resp.Body).Decode(&players); err != nil {
 			log.Printf("failed to decode players response: %v", err)
-			_ = tmpl.Execute(w, map[string]any{"error": "Failed to decode players data"})
+			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to decode players data"})
 			return
 		}
 
 		if len(players) == 0 {
-			_ = tmpl.Execute(w, map[string]any{"error": "No players online"})
+			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "No players online"})
 			return
 		}
 
@@ -380,7 +379,7 @@ func main() {
 			}
 		}
 
-		if err := tmpl.Execute(w, map[string]any{"players": playerData}); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "players", map[string]any{"players": playerData}); err != nil {
 			log.Printf("failed to execute template: %v", err)
 			http.Error(w, "Failed to render players page", http.StatusInternalServerError)
 			return
