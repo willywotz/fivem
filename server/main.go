@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -326,6 +327,66 @@ func main() {
 			http.Error(w, "failed to encode status", http.StatusInternalServerError)
 			return
 		}
+	})
+
+	http.HandleFunc("/players", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
+		htmlContent, _ := staticFS.ReadFile("static/players.html")
+		tmpl, _ := template.New("players").Parse(string(htmlContent))
+		_ = tmpl.Execute(w, nil)
+
+		url := "http://212.80.214.124:30120/players.json"
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Printf("failed to fetch players: %v", err)
+			_ = tmpl.Execute(w, map[string]any{"error": "Failed to fetch players data"})
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("Unexpected status code: %d", resp.StatusCode)
+			_ = tmpl.Execute(w, map[string]any{"error": "Failed to fetch players data"})
+			return
+		}
+
+		var players []struct {
+			Endpoint string `json:"endpoint"`
+			ID       int    `json:"id"`
+			Name     string `json:"name"`
+			Ping     int    `json:"ping"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&players); err != nil {
+			log.Printf("failed to decode players response: %v", err)
+			_ = tmpl.Execute(w, map[string]any{"error": "Failed to decode players data"})
+			return
+		}
+
+		if len(players) == 0 {
+			_ = tmpl.Execute(w, map[string]any{"message": "No players online"})
+			return
+		}
+
+		playerData := make([]map[string]any, len(players))
+		for i, player := range players {
+			playerData[i] = map[string]any{
+				"endpoint": player.Endpoint,
+				"id":       player.ID,
+				"name":     player.Name,
+				"ping":     player.Ping,
+			}
+		}
+
+		if err := tmpl.Execute(w, map[string]any{"players": playerData}); err != nil {
+			log.Printf("failed to execute template: %v", err)
+			http.Error(w, "Failed to render players page", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Fetched %d players from %s", len(players), url)
 	})
 
 	var downloadURL string
