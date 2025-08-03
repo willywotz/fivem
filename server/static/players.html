@@ -34,8 +34,8 @@
         let playerData = {{ .players | json }};
         let error = {{ .error | json }};
 
-        console.log("Player Data:", playerData);
-        console.log("Error:", error);
+        // console.log("Player Data:", playerData);
+        // console.log("Error:", error);
 
         if (error) {
             document.getElementById('error-message').innerText = error;
@@ -79,8 +79,8 @@
             fetch('/players.json')
                 .then(response => response.json())
                 .then(data => {
-                    console.log("Player Data:", data.players);
-                    console.log("Error:", data.error);
+                    // console.log("Player Data:", data.players);
+                    // console.log("Error:", data.error);
 
                     if (data.error) {
                         document.getElementById('error-message').innerText = data.error;
