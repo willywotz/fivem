@@ -16,9 +16,11 @@
         <div class="container mx-auto p-4">
             <!-- <h1 class="text-2xl font-bold mb-4">Player Page</h1>
             <p class="mb-4">This is the player page content.</p> -->
-            <div class="mb-4 flex justify-between gap-4">
+            <div class="mb-4 flex gap-4">
                 <a href="/players"><h1 class="text-2xl font-bold">FiveM Tools</h1></a>
-                <input type="text" id="search-input" placeholder="Search players... {id, name}" class="border rounded p-2 flex-1 max-w-[48rem] focus:bg-white transition duration-100">
+                <div class="flex-1"></div>
+                <input type="text" id="search-input" placeholder="Search players... {id, name}" class="border rounded p-2 w-full max-w-[48rem] focus:bg-white transition duration-100">
+                <div class="p-2 border rounded bg-white">Online: <span id="online-count" class="font-semibold">0</span></div>
             </div>
 
             <div id="error-message" class="text-red-500 mt-4">
@@ -71,10 +73,17 @@
         // console.log("Player Data:", playerData);
         // console.log("Error:", error);
 
+        updateOnlineCount(playerData);
+
         if (error) {
             document.getElementById('error-message').innerText = error;
         } else {
             renderPlayerData(playerData);
+        }
+
+        function updateOnlineCount(data) {
+            const onlineCount = data ? data.length : 0;
+            document.getElementById('online-count').innerText = onlineCount;
         }
 
         function renderPlayerData(data) {
@@ -127,6 +136,8 @@
                 .then(data => {
                     // console.log("Player Data:", data.players);
                     // console.log("Error:", data.error);
+
+                    updateOnlineCount(data.players);
 
                     if (data.error) {
                         document.getElementById('error-message').innerText = data.error;
