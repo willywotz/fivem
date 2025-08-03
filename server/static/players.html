@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <title>Document</title>
+    </head>
+
+    <body class="overflow-y-scroll bg-gray-100">
+        <!-- <h1>Player Page</h1>
+        <p>This is the player page content.</p> -->
+        <!-- <script src="https://example.com/some-script.js"></script> -->
+        <!-- <link rel="stylesheet" href="https://example.com/some-style.css"> -->
+
+        <div class="container mx-auto p-4">
+            <!-- <h1 class="text-2xl font-bold mb-4">Player Page</h1>
+            <p class="mb-4">This is the player page content.</p> -->
+            <div class="mb-4 flex justify-between">
+                <h1 class="text-2xl font-bold">FiveM Tools</h1>
+                <input type="text" id="search-input" placeholder="Search players... {id, name}" class="border rounded p-2 flex-1 max-w-[48rem]">
+            </div>
+
+            <div id="error-message" class="text-red-500 mt-4">
+                <!-- Error message will be displayed here if any -->
+            </div>
+            <!-- <div id="player-data" class="bg-gray-100 p-4 rounded-lg"> -->
+            <div id="player-data" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <!-- Player data will be rendered here -->
+            </div>
+        </div>
+
+        <script>
+        let playerData = {{ .players | json }};
+        let error = {{ .error | json }};
+
+        if (error) {
+            document.getElementById('error-message').innerText = error;
+        } else {
+            renderPlayerData(playerData);
+        }
+
+        function renderPlayerData(data) {
+            let playerDataDiv = document.getElementById('player-data');
+            playerDataDiv.innerHTML = data.map(player => `
+                <div class="player-card bg-white p-4 mb-4 rounded-lg border">
+                    <h2 class="text-xl font-semibold">${player.name}</h2>
+                    <p class="text-gray-700">ID: ${player.id} ; Ping: ${player.ping}ms</p>
+                </div>
+            `).join('');
+        }
+
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', function() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filteredData = playerData.filter(player =>
+                player.name.toLowerCase().includes(searchTerm) ||
+                player.id.toString().includes(searchTerm)
+            );
+            renderPlayerData(filteredData);
+        });
+
+        console.log("Player Data:", playerData);
+        console.log("Error:", error);
+        </script>
+    </body>
+</html>

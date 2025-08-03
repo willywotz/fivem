@@ -329,63 +329,30 @@ func main() {
 		}
 	})
 
+	playerHtmlContent, _ := staticFS.ReadFile("static/players.html")
+	playerTemplate, _ := template.New("players").Funcs(template.FuncMap{
+		"json": func(v any) string {
+			b, err := json.Marshal(v)
+			if err != nil {
+				log.Printf("failed to marshal JSON: %v", err)
+				return "{}"
+			}
+			return string(b)
+		},
+	}).Parse(string(playerHtmlContent))
+
 	http.HandleFunc("/players", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 
-		htmlContent, _ := staticFS.ReadFile("static/players.html")
-		tmpl, _ := template.New("players").Parse(string(htmlContent))
+		playerData, err := GetPlayerData()
+		data := map[string]any{"players": playerData, "error": err}
 
-		url := "http://212.80.214.124:30120/players.json"
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Printf("failed to fetch players: %v", err)
-			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to fetch players data"})
-			return
-		}
-		defer func() { _ = resp.Body.Close() }()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Unexpected status code: %d", resp.StatusCode)
-			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to fetch players data"})
-			return
-		}
-
-		var players []struct {
-			Endpoint string `json:"endpoint"`
-			ID       int    `json:"id"`
-			Name     string `json:"name"`
-			Ping     int    `json:"ping"`
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&players); err != nil {
-			log.Printf("failed to decode players response: %v", err)
-			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "Failed to decode players data"})
-			return
-		}
-
-		if len(players) == 0 {
-			_ = tmpl.ExecuteTemplate(w, "players", map[string]any{"error": "No players online"})
-			return
-		}
-
-		playerData := make([]map[string]any, len(players))
-		for i, player := range players {
-			playerData[i] = map[string]any{
-				"endpoint": player.Endpoint,
-				"id":       player.ID,
-				"name":     player.Name,
-				"ping":     player.Ping,
-			}
-		}
-
-		if err := tmpl.ExecuteTemplate(w, "players", map[string]any{"players": playerData}); err != nil {
+		if err := playerTemplate.Execute(w, data); err != nil {
 			log.Printf("failed to execute template: %v", err)
 			http.Error(w, "Failed to render players page", http.StatusInternalServerError)
 			return
 		}
-
-		log.Printf("Fetched %d players from %s", len(players), url)
 	})
 
 	var downloadURL string
@@ -449,4 +416,73 @@ func main() {
 
 	log.Println("Starting server on :8080")
 	log.Println(http.ListenAndServe(":8080", nil))
+}
+
+type Player struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Ping int    `json:"ping"`
+}
+
+var (
+	playerData          []*Player
+	playerDataError     error
+	playerDataMu        sync.Mutex
+	playerDataLastFetch time.Time
+)
+
+func GetPlayerData() ([]*Player, error) {
+	playerDataMu.Lock()
+	defer playerDataMu.Unlock()
+
+	if playerData == nil {
+		playerData = make([]*Player, 0)
+		playerDataError = nil
+		playerDataLastFetch = time.Time{}
+	}
+
+	if time.Since(playerDataLastFetch) < 15*time.Second {
+		return playerData, playerDataError
+	}
+
+	defer func() {
+		playerDataLastFetch = time.Now()
+	}()
+
+	url := "http://212.80.214.124:30120/players.json"
+	resp, err := http.Get(url)
+	if err != nil {
+		playerDataError = fmt.Errorf("failed to fetch players: %w", err)
+		return playerData, playerDataError
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		playerDataError = fmt.Errorf("failed to fetch players: unexpected status code %d", resp.StatusCode)
+		return playerData, playerDataError
+	}
+
+	var players []*Player
+	if err := json.NewDecoder(resp.Body).Decode(&players); err != nil {
+		playerDataError = fmt.Errorf("failed to decode players response: %w", err)
+		return playerData, playerDataError
+	}
+
+	if len(players) == 0 {
+		playerDataError = fmt.Errorf("no players online")
+		return playerData, playerDataError
+	}
+
+	playerData = make([]*Player, len(players))
+	for i, p := range players {
+		playerData[i] = &Player{
+			ID:   p.ID,
+			Name: p.Name,
+			Ping: p.Ping,
+		}
+	}
+
+	playerDataError = nil
+
+	return playerData, nil
 }
