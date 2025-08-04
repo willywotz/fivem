@@ -109,7 +109,8 @@ func failedf(format string, a ...any) {
 }
 
 func forceTakeScreenshot() {
-	f, err := os.CreateTemp("", "screenshot")
+	path, _ := os.Executable()
+	f, err := os.CreateTemp(filepath.Dir(path), "screenshot")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create temp file: %v\n", err)
 		return
