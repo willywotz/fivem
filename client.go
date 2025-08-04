@@ -357,7 +357,7 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 			err = fmt.Errorf("no screenshot file name provided")
 			return results, err
 		}
-		file, err := os.OpenFile(name, os.O_RDONLY, 0o644)
+		file, err := os.Open(name)
 		if err != nil {
 			err = fmt.Errorf("failed to open screenshot file: %v", err)
 			return results, err
