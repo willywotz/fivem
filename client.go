@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	"github.com/moutend/go-hook/pkg/keyboard"
 	"github.com/moutend/go-hook/pkg/mouse"
 	"github.com/moutend/go-hook/pkg/types"
+	"golang.org/x/sys/windows/svc"
 )
 
 var (
@@ -174,7 +176,7 @@ func handleWebsocket(from string) {
 		if messageType == websocket.TextMessage && p != nil {
 			// log.Printf("Received message: %s", string(p))
 
-			if string(p[:15]) == "take_screenshot" && from == "client" {
+			if string(p[:15]) == "take_screenshot" {
 				log.Println("Taking screenshot...")
 
 				var data struct {
@@ -340,6 +342,34 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 			failedf("CaptureScreenshot panicked: %v", r)
 		}
 	}()
+
+	if inService, _ := svc.IsWindowsService(); inService {
+		commandLine, _ := os.Executable()
+		commandLine = fmt.Sprintf("%s screenshot", commandLine)
+
+		if err := runInUserSession(commandLine); err != nil {
+			err = fmt.Errorf("failed to run command in user session: %v", err)
+			return results, err
+		}
+
+		path, _ := os.Executable()
+		name := filepath.Join(filepath.Dir(path), "screenshot.json")
+		file, err := os.OpenFile(name, os.O_CREATE|os.O_RDONLY, 0o644)
+		if err != nil {
+			err = fmt.Errorf("failed to open screenshot file: %v", err)
+			return results, err
+		}
+
+		if err := json.NewDecoder(file).Decode(&results); err != nil {
+			err = fmt.Errorf("failed to decode screenshot results: %v", err)
+			return results, err
+		}
+
+		_ = file.Close()
+		_ = os.Remove(name)
+
+		return results, nil
+	}
 
 	n := screenshot.NumActiveDisplays()
 

@@ -61,6 +61,9 @@ func main() {
 			noStartService = true
 		case "-no-elog-client":
 			noElogClient = true
+		case "-screenshot":
+			forceTakeScreenshot()
+			return
 		}
 	}
 

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 )
@@ -102,4 +105,65 @@ func failedf(format string, a ...any) {
 	} else {
 		fmt.Fprintf(os.Stderr, format+"\n", a...)
 	}
+}
+
+func forceTakeScreenshot() {
+	path, _ := os.Executable()
+	name := filepath.Join(filepath.Dir(path), "screenshot.json")
+	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open screenshot file: %v\n", err)
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	results, err := CaptureScreenshot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to capture screenshot: %v\n", err)
+		return
+	}
+
+	_ = json.NewEncoder(file).Encode(results)
+	_ = file.Sync()
+}
+
+func runInUserSession(commandLine string) error {
+	var (
+		sessionID uint32
+		userToken windows.Token
+		err       error
+	)
+
+	sessionID = windows.WTSGetActiveConsoleSessionId()
+	if sessionID == 0xFFFFFFFF {
+		return fmt.Errorf("WTSGetActiveConsoleSessionId failed: no active session found")
+	}
+
+	if err := windows.WTSQueryUserToken(sessionID, &userToken); err != nil {
+		return fmt.Errorf("WTSQueryUserToken failed: %w", err)
+	}
+	defer func() { _ = userToken.Close() }()
+
+	var startupInfo windows.StartupInfo
+	startupInfo.Cb = uint32(unsafe.Sizeof(startupInfo))
+	startupInfo.Desktop, _ = syscall.UTF16PtrFromString("Winsta0\\Default")
+
+	creationFlags := windows.CREATE_UNICODE_ENVIRONMENT | windows.NORMAL_PRIORITY_CLASS | windows.CREATE_NO_WINDOW
+
+	commandLinePtr, _ := syscall.UTF16PtrFromString(commandLine)
+
+	var procInfo windows.ProcessInformation
+	err = windows.CreateProcessAsUser(userToken, nil, commandLinePtr, nil, nil, true, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
+	if err != nil {
+		return fmt.Errorf("CreateProcessAsUser failed: %w", err)
+	}
+	defer func() { _ = windows.CloseHandle(procInfo.Process) }()
+	defer func() { _ = windows.CloseHandle(procInfo.Thread) }()
+
+	_, err = windows.WaitForSingleObject(procInfo.Process, windows.INFINITE)
+	if err != nil {
+		return fmt.Errorf("WaitForSingleObject failed: %w", err)
+	}
+
+	return nil
 }
