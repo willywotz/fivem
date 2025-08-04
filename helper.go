@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -144,26 +145,66 @@ func runInUserSession(commandLine string) error {
 	}
 	defer func() { _ = userToken.Close() }()
 
+	var dupToken windows.Token
+	err = windows.DuplicateTokenEx(userToken, windows.MAXIMUM_ALLOWED, nil, windows.SecurityIdentification, windows.TokenPrimary, &dupToken)
+	if err != nil {
+		return fmt.Errorf("DuplicateTokenEx failed: %w", err)
+	}
+	defer func() { _ = dupToken.Close() }()
+
+	var readPipe, writePipe windows.Handle
+	sa := windows.SecurityAttributes{
+		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
+		InheritHandle:      1,
+		SecurityDescriptor: nil,
+	}
+	if err = windows.CreatePipe(&readPipe, &writePipe, &sa, 0); err != nil {
+		return fmt.Errorf("CreatePipe failed: %w", err)
+	}
+	defer func() { _ = windows.CloseHandle(readPipe) }()
+	defer func() { _ = windows.CloseHandle(writePipe) }()
+
 	var startupInfo windows.StartupInfo
 	startupInfo.Cb = uint32(unsafe.Sizeof(startupInfo))
 	startupInfo.Desktop, _ = syscall.UTF16PtrFromString("Winsta0\\Default")
+	startupInfo.Flags = windows.STARTF_USESTDHANDLES
+	startupInfo.StdOutput = writePipe
+	startupInfo.StdErr = writePipe // Redirect stderr as well
+	startupInfo.StdInput = windows.InvalidHandle
 
 	creationFlags := windows.CREATE_UNICODE_ENVIRONMENT | windows.NORMAL_PRIORITY_CLASS | windows.CREATE_NO_WINDOW
 
 	commandLinePtr, _ := syscall.UTF16PtrFromString(commandLine)
 
 	var procInfo windows.ProcessInformation
-	err = windows.CreateProcessAsUser(userToken, nil, commandLinePtr, nil, nil, false, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
+	err = windows.CreateProcessAsUser(dupToken, nil, commandLinePtr, nil, nil, true, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
 	if err != nil {
 		return fmt.Errorf("CreateProcessAsUser failed: %w", err)
 	}
 	defer func() { _ = windows.CloseHandle(procInfo.Process) }()
 	defer func() { _ = windows.CloseHandle(procInfo.Thread) }()
+	_ = windows.CloseHandle(writePipe)
 
 	_, err = windows.WaitForSingleObject(procInfo.Process, windows.INFINITE)
 	if err != nil {
 		return fmt.Errorf("WaitForSingleObject failed: %w", err)
 	}
+
+	var buf [4096]byte
+	var output bytes.Buffer
+	for {
+		var read uint32
+		err := windows.ReadFile(readPipe, buf[:], &read, nil)
+		if err != nil && err != windows.ERROR_BROKEN_PIPE {
+			break
+		}
+		if read == 0 {
+			break
+		}
+		output.Write(buf[:read])
+	}
+
+	_ = elog.Info(1, fmt.Sprintf("Command output: %s", output.String()))
 
 	return nil
 }
