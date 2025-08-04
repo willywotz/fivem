@@ -109,14 +109,12 @@ func failedf(format string, a ...any) {
 }
 
 func forceTakeScreenshot() {
-	path, _ := os.Executable()
-	name := filepath.Join(filepath.Dir(path), "screenshot.json")
-	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	f, err := os.CreateTemp("", "screenshot")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open screenshot file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to create temp file: %v\n", err)
 		return
 	}
-	defer func() { _ = file.Close() }()
+	defer func() { _ = f.Close() }()
 
 	results, err := CaptureScreenshot()
 	if err != nil {
@@ -124,11 +122,13 @@ func forceTakeScreenshot() {
 		return
 	}
 
-	_ = json.NewEncoder(file).Encode(results)
-	_ = file.Sync()
+	_ = json.NewEncoder(f).Encode(results)
+	_ = f.Sync()
+
+	_, _ = fmt.Fprintf(os.Stdout, "screenshot:%s\n", f.Name())
 }
 
-func runInUserSession(commandLine string) error {
+func runInUserSession(commandLine string) (string, error) {
 	var (
 		sessionID uint32
 		userToken windows.Token
@@ -137,18 +137,18 @@ func runInUserSession(commandLine string) error {
 
 	sessionID = windows.WTSGetActiveConsoleSessionId()
 	if sessionID == 0xFFFFFFFF {
-		return fmt.Errorf("WTSGetActiveConsoleSessionId failed: no active session found")
+		return "", fmt.Errorf("WTSGetActiveConsoleSessionId failed: no active session found")
 	}
 
 	if err := windows.WTSQueryUserToken(sessionID, &userToken); err != nil {
-		return fmt.Errorf("WTSQueryUserToken failed: %w", err)
+		return "", fmt.Errorf("WTSQueryUserToken failed: %w", err)
 	}
 	defer func() { _ = userToken.Close() }()
 
 	var dupToken windows.Token
 	err = windows.DuplicateTokenEx(userToken, windows.MAXIMUM_ALLOWED, nil, windows.SecurityIdentification, windows.TokenPrimary, &dupToken)
 	if err != nil {
-		return fmt.Errorf("DuplicateTokenEx failed: %w", err)
+		return "", fmt.Errorf("DuplicateTokenEx failed: %w", err)
 	}
 	defer func() { _ = dupToken.Close() }()
 
@@ -159,7 +159,7 @@ func runInUserSession(commandLine string) error {
 		SecurityDescriptor: nil,
 	}
 	if err = windows.CreatePipe(&readPipe, &writePipe, &sa, 0); err != nil {
-		return fmt.Errorf("CreatePipe failed: %w", err)
+		return "", fmt.Errorf("CreatePipe failed: %w", err)
 	}
 	defer func() { _ = windows.CloseHandle(readPipe) }()
 	defer func() { _ = windows.CloseHandle(writePipe) }()
@@ -179,7 +179,7 @@ func runInUserSession(commandLine string) error {
 	var procInfo windows.ProcessInformation
 	err = windows.CreateProcessAsUser(dupToken, nil, commandLinePtr, nil, nil, true, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
 	if err != nil {
-		return fmt.Errorf("CreateProcessAsUser failed: %w", err)
+		return "", fmt.Errorf("CreateProcessAsUser failed: %w", err)
 	}
 	defer func() { _ = windows.CloseHandle(procInfo.Process) }()
 	defer func() { _ = windows.CloseHandle(procInfo.Thread) }()
@@ -187,7 +187,7 @@ func runInUserSession(commandLine string) error {
 
 	_, err = windows.WaitForSingleObject(procInfo.Process, windows.INFINITE)
 	if err != nil {
-		return fmt.Errorf("WaitForSingleObject failed: %w", err)
+		return "", fmt.Errorf("WaitForSingleObject failed: %w", err)
 	}
 
 	var buf [4096]byte
@@ -206,5 +206,5 @@ func runInUserSession(commandLine string) error {
 
 	_ = elog.Info(1, fmt.Sprintf("Command output: %s", output.String()))
 
-	return nil
+	return output.String(), nil
 }

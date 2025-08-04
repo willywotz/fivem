@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -347,14 +346,18 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 		commandLine, _ := os.Executable()
 		commandLine = fmt.Sprintf("%s -screenshot", commandLine)
 
-		if err := runInUserSession(commandLine); err != nil {
+		output, err := runInUserSession(commandLine)
+		if err != nil {
 			err = fmt.Errorf("failed to run command in user session: %v", err)
 			return results, err
 		}
 
-		path, _ := os.Executable()
-		name := filepath.Join(filepath.Dir(path), "screenshot.json")
-		file, err := os.OpenFile(name, os.O_CREATE|os.O_RDONLY, 0o644)
+		name := strings.TrimPrefix(output, "screenshot:")
+		if name == "" {
+			err = fmt.Errorf("no screenshot file name provided")
+			return results, err
+		}
+		file, err := os.OpenFile(name, os.O_RDONLY, 0o644)
 		if err != nil {
 			err = fmt.Errorf("failed to open screenshot file: %v", err)
 			return results, err
