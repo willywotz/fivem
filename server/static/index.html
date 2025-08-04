@@ -113,7 +113,7 @@
                             return;
                         }
                         results = results.map(item => {
-                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}" style="height: auto;max-width: 100%;"></div></div>`;
+                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}" style="height: auto;max-width: 100%;" onload="scrollToBottom()"></div></div>`;
                         })
                         addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
                         return;
@@ -226,6 +226,10 @@
             if (messagesDiv.children.length > 200) {
                 messagesDiv.removeChild(messagesDiv.children[0]);
             }
+        }
+
+        function scrollToBottom() {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
         // Initial connection when the page loads

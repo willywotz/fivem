@@ -21,6 +21,7 @@
                 <div class="flex-1"></div>
                 <input type="text" id="search-input" placeholder="Search players... {id, name}" class="border rounded p-2 w-full max-w-[48rem] focus:bg-white transition duration-100">
                 <div class="p-2 border rounded bg-white">Online: <span id="online-count" class="font-semibold">0</span></div>
+                <!-- <div class="p-2 border rounded hover:bg-white cursor-pointer">🔧</div> -->
             </div>
 
             <div id="error-message" class="text-red-500 mt-4">
@@ -96,7 +97,7 @@
             }
 
             playerDataDiv.innerHTML = data.sort((a, b) => a.id - b.id).map(player => `
-                <div class="player-card bg-white p-4 mb-4 rounded-lg border">
+                <div class="player-card bg-white p-4 mb-4 rounded-lg border" onclick="showUpdate('${player.id}')">
                     <h2 class="text-xl font-semibold">${player.name}</h2>
                     <p class="text-gray-700">ID: ${player.id} ; Ping: ${player.ping}ms</p>
                 </div>
@@ -127,6 +128,13 @@
                 toast.classList.add('hidden');
                 toast.classList.remove('bg-animate');
             }, 5600); // 5.6 seconds
+        }
+
+        function showUpdate(playerId) {
+            // Implement the logic to show player update
+            console.log("Show update for player ID:", playerId);
+            // You can redirect to another page or show a modal with player details
+            // window.location.href = `/player/${playerId}`;
         }
 
         setInterval(() => {
