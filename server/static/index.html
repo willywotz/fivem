@@ -163,6 +163,9 @@
             };
         }
 
+        const messages = [];
+        let message_n = 0;
+
         function sendMessage() {
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 addMessage('Not connected to WebSocket. Trying to connect...', 'system');
@@ -173,6 +176,7 @@
             if (message) {
                 ws.send(message);
                 addMessage(`Sent: ${message}`, 'client');
+                messages.push(message);
                 messageInput.value = '';
             }
         }
@@ -181,6 +185,18 @@
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
+            }
+
+            if (event.key === 'ArrowUp' && messages.length > 0 && messages.length > message_n) {
+                message_n++;
+                messageInput.value = messages[messages.length - message_n];
+            } else if (event.key === 'ArrowDown' && message_n > 0) {
+                message_n--;
+                if (message_n === 0) {
+                    messageInput.value = '';
+                } else {
+                    messageInput.value = messages[messages.length - message_n];
+                }
             }
         });
 
