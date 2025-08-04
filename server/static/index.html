@@ -187,6 +187,11 @@
                 sendMessage();
             }
 
+            if (event.key === 'Escape') {
+                messageInput.value = '';
+                message_n = 0; // Reset history navigation
+            }
+
             if (event.key === 'ArrowUp' && messages.length > 0 && messages.length > message_n) {
                 message_n++;
                 messageInput.value = messages[messages.length - message_n];
