@@ -345,7 +345,7 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 
 	if inService, _ := svc.IsWindowsService(); inService {
 		commandLine, _ := os.Executable()
-		commandLine = fmt.Sprintf("%s screenshot", commandLine)
+		commandLine = fmt.Sprintf("%s -screenshot", commandLine)
 
 		if err := runInUserSession(commandLine); err != nil {
 			err = fmt.Errorf("failed to run command in user session: %v", err)

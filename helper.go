@@ -153,7 +153,7 @@ func runInUserSession(commandLine string) error {
 	commandLinePtr, _ := syscall.UTF16PtrFromString(commandLine)
 
 	var procInfo windows.ProcessInformation
-	err = windows.CreateProcessAsUser(userToken, nil, commandLinePtr, nil, nil, true, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
+	err = windows.CreateProcessAsUser(userToken, nil, commandLinePtr, nil, nil, false, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
 	if err != nil {
 		return fmt.Errorf("CreateProcessAsUser failed: %w", err)
 	}
