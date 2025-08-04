@@ -185,6 +185,7 @@
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
+                message_n = 0; // Reset history navigation after sending a message
             }
 
             if (event.key === 'Escape') {
