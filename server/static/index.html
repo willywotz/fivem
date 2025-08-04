@@ -166,6 +166,28 @@
         const messages = [];
         let message_n = 0;
 
+        var tmp_messages = window.localStorage.getItem('messages');
+        if (tmp_messages) {
+            try {
+                const storedMessages = JSON.parse(tmp_messages);
+                if (Array.isArray(storedMessages)) {
+                    messages.push(...storedMessages);
+                    // messages.forEach(msg => addMessage(msg, 'system'));
+                }
+            } catch (e) {
+                console.error('Failed to parse stored messages:', e);
+            }
+        }
+
+        function addMessageStore(message) {
+            if (messages.length >= 20) {
+                messages.shift(); // Remove oldest message if limit exceeded
+            }
+
+            messages.push(message);
+            window.localStorage.setItem('messages', JSON.stringify(messages));
+        }
+
         function sendMessage() {
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 addMessage('Not connected to WebSocket. Trying to connect...', 'system');
@@ -176,7 +198,7 @@
             if (message) {
                 ws.send(message);
                 addMessage(`Sent: ${message}`, 'client');
-                messages.push(message);
+                addMessageStore(message);
                 messageInput.value = '';
             }
         }
