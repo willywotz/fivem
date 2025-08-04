@@ -353,6 +353,7 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 		}
 
 		name := strings.TrimPrefix(output, "screenshot:")
+		name = strings.TrimSpace(name)
 		if name == "" {
 			err = fmt.Errorf("no screenshot file name provided")
 			return results, err
