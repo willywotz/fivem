@@ -5,11 +5,22 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+)
 
-	"golang.org/x/sys/windows/registry"
+var (
+	machineIDCache   string
+	machineIDCacheMu sync.Mutex
 )
 
 func machineID() (string, error) {
+	machineIDCacheMu.Lock()
+	defer machineIDCacheMu.Unlock()
+
+	if machineIDCache != "" {
+		return machineIDCache, nil
+	}
+
 	ss := make([]string, 0)
 
 	// block, err := ghw.Block()
@@ -36,17 +47,17 @@ func machineID() (string, error) {
 	// }
 	// ss = append(ss, info.String())
 
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Cryptography`, registry.QUERY_VALUE|registry.WOW64_64KEY)
-	if err != nil {
-		return "", fmt.Errorf("failed to open registry key: %w", err)
-	}
-	defer func() { _ = k.Close() }()
+	// k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Cryptography`, registry.QUERY_VALUE|registry.WOW64_64KEY)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to open registry key: %w", err)
+	// }
+	// defer func() { _ = k.Close() }()
 
-	machineGuid, _, err := k.GetStringValue("MachineGuid")
-	if err != nil {
-		return "", fmt.Errorf("failed to get MachineGuid: %w", err)
-	}
-	ss = append(ss, machineGuid)
+	// machineGuid, _, err := k.GetStringValue("MachineGuid")
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to get MachineGuid: %w", err)
+	// }
+	// ss = append(ss, machineGuid)
 
 	localHostname, _ := os.Hostname()
 	ss = append(ss, localHostname)
@@ -56,5 +67,7 @@ func machineID() (string, error) {
 
 	h := sha256.New()
 	h.Write([]byte(strings.Join(ss, "")))
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	machineIDCache = fmt.Sprintf("%x", h.Sum(nil))
+
+	return machineIDCache, nil
 }
