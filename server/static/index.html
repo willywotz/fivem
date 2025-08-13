@@ -66,6 +66,31 @@
             }
         }
 
+        function base64ToBlobUrl(base64String, mimeType) {
+            // Remove the data:image/[type];base64, part if present
+            const base64WithoutPrefix = base64String.split(',')[1] || base64String;
+
+            // Decode the Base64 string
+            const binaryString = atob(base64WithoutPrefix);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // Create a Blob object
+            const blob = new Blob([bytes], { type: mimeType });
+
+            // Create a URL for the Blob
+            return URL.createObjectURL(blob);
+        }
+
+        function revokeObjectURL(url) {
+            console.log(`Revoking Object URL: ${url}`);
+            URL.revokeObjectURL(url);
+            scrollToBottom();
+        }
+
         function connectWebSocket() {
             if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
                 // Already connecting or open, do nothing
@@ -113,7 +138,9 @@
                             return;
                         }
                         results = results.map(item => {
-                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="data:image/png;base64,${item.image || ''}" style="height: auto;max-width: 100%;" onload="scrollToBottom()"></div></div>`;
+                            const imageURL = base64ToBlobUrl(item.image, 'image/jpeg'); // Convert base64 to Blob URL
+
+                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="${imageURL}" style="height: auto;max-width: 100%;" onload="revokeObjectURL('${imageURL}')"></div></div>`;
                         })
                         addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
                         return;

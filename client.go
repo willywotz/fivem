@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/png"
+	"image/jpeg"
 	"log"
 	"net"
 	"net/http"
@@ -391,7 +391,14 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 		}
 
 		var buf bytes.Buffer
-		if err := png.Encode(&buf, img); err != nil {
+
+		// if err := png.Encode(&buf, img); err != nil {
+		// 	r.Error = fmt.Sprintf("failed to encode screenshot: %v", err)
+		// 	results = append(results, r)
+		// 	continue
+		// }
+
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
 			r.Error = fmt.Sprintf("failed to encode screenshot: %v", err)
 			results = append(results, r)
 			continue
