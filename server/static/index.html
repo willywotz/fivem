@@ -92,8 +92,7 @@
         }
 
         function openImageInNewTab(imageURL) {
-            const newTab = window.open();
-            newTab.document.write(`<img src="${imageURL}" style="width: 100%; height: auto;">`);
+            window.open(imageURL, '_blank');
         }
 
         function connectWebSocket() {
