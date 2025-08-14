@@ -91,6 +91,11 @@
             scrollToBottom();
         }
 
+        function openImageInNewTab(imageURL) {
+            const newTab = window.open();
+            newTab.document.write(`<img src="${imageURL}" style="width: 100%; height: auto;">`);
+        }
+
         function connectWebSocket() {
             if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
                 // Already connecting or open, do nothing
@@ -140,7 +145,7 @@
                         results = results.map(item => {
                             const imageURL = base64ToBlobUrl(item.image, 'image/jpeg'); // Convert base64 to Blob URL
 
-                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="${imageURL}" style="height: auto;max-width: 100%;" onload="revokeObjectURL('${imageURL}')"></div></div>`;
+                            return `<div><div>display no: ${item.display_index}, bonds: ${JSON.stringify(item.display_bounds) || ''}, error: ${item.error || 'N/A'}</div><div><img src="${imageURL}" style="height: auto;max-width: 100%;" onload="revokeObjectURL('${imageURL}')" onclick="openImageInNewTab('${imageURL}')"></div></div>`;
                         })
                         addMessage(`<div>machine_id:${data.machine_id || ''}, hostname:${data.hostname || ''}, username:${data.username || ''}</div><div${results.join('')}></div>`, 'screenshot');
                         return;
