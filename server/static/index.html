@@ -87,7 +87,7 @@
 
         function revokeObjectURL(url) {
             console.log(`Revoking Object URL: ${url}`);
-            URL.revokeObjectURL(url);
+            // URL.revokeObjectURL(url);
             scrollToBottom();
         }
 
@@ -273,7 +273,13 @@
             console.log(`Message added: ${message.substring(0, 100)}`);
 
             if (messagesDiv.children.length > 200) {
-                messagesDiv.removeChild(messagesDiv.children[0]);
+                const el = messagesDiv.children[0];
+                el.querySelectorAll('img').forEach(function (img) {
+                    if (img.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(img.src);
+                    }
+                });
+                messagesDiv.removeChild(el);
             }
         }
 
