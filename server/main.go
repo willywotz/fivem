@@ -458,7 +458,7 @@ func GetPlayerData() ([]*Player, error) {
 		playerDataLastFetch = time.Now()
 	}()
 
-	url := "http://212.80.214.124:30120/players.json"
+	url := "http://141.98.19.200:30120/players.json"
 	resp, err := http.Get(url)
 	if err != nil {
 		playerDataError = fmt.Errorf("failed to fetch players: %w", err)
