@@ -1,0 +1,13 @@
+# ninja log v7
+97	453	7754505113895082	CMakeFiles/miniaudio_channel_separator_node.dir/extras/nodes/ma_channel_separator_node/ma_channel_separator_node.c.obj	f062b0bd739c110e
+99	459	7754505113925078	CMakeFiles/miniaudio_ltrim_node.dir/extras/nodes/ma_ltrim_node/ma_ltrim_node.c.obj	dce50efc0f678c14
+93	465	7754505113865029	CMakeFiles/miniaudio_channel_combiner_node.dir/extras/nodes/ma_channel_combiner_node/ma_channel_combiner_node.c.obj	75dd259f21fc5fbf
+105	470	7754505113990171	CMakeFiles/miniaudio_vocoder_node.dir/extras/nodes/ma_vocoder_node/ma_vocoder_node.c.obj	c4a77a0e64c302
+102	477	7754505113960116	CMakeFiles/miniaudio_reverb_node.dir/extras/nodes/ma_reverb_node/ma_reverb_node.c.obj	de3a4f7b281df782
+470	674	7754505117630035	libminiaudio_vocoder_node.a	31ac087f198da1ca
+477	676	7754505117705165	libminiaudio_reverb_node.a	ac1fbae20d83db64
+465	676	7754505117580042	libminiaudio_channel_combiner_node.a	c467bde4df9c3edf
+459	676	7754505117529558	libminiaudio_ltrim_node.a	27192202565b9f7
+454	681	7754505117469482	libminiaudio_channel_separator_node.a	2e4a58ebe775ed56
+27	4898	7754505113211364	CMakeFiles/miniaudio.dir/miniaudio.c.obj	bdf47ddeedb1084b
+4899	4974	7754505161928949	libminiaudio.a	7203f8b7a252d854

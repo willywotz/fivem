@@ -1,0 +1,8 @@
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio_channel_combiner_node.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio_channel_separator_node.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio_ltrim_node.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio_reverb_node.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/miniaudio_vocoder_node.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/edit_cache.dir
+C:/Users/foo/Downloads/miniaudio-0.11.22/CMakeFiles/rebuild_cache.dir

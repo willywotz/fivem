@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  audio-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "8080:8080"
+    networks:
+      - audio-net
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+
+  audio-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    depends_on:
+      - audio-server
+    environment:
+      - SERVER_URL=http://audio-server:8080
+    networks:
+      - audio-net
+    restart: unless-stopped
+    # For audio capture on Linux, you might need:
+    # devices:
+    #   - /dev/snd:/dev/snd
+    # privileged: true
+
+networks:
+  audio-net:
+    driver: bridge
+
+# Manual run commands (use with docker-compose run):
+# Server: docker-compose run --rm -p 8080:8080 audio-server
+# Client: docker-compose run --rm audio-client
+# Or build and run locally:
+# Server: go run ./cmd/server
+# Client: go run ./cmd/client -server=http://localhost:8080

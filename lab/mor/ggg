@@ -1,0 +1,561 @@
+package main
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"image"
+	"image/png"
+	"log"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"syscall"
+	"time"
+	"unsafe"
+
+	"github.com/kbinani/screenshot"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/debug"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/svc/mgr"
+)
+
+// func test() {
+// 	_ = godotenv.Load(".env")
+
+// 	signalCh := make(chan os.Signal, 1)
+// 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+// 	wait := func() { <-signalCh }
+
+// 	ctx := context.Background()
+
+// 	cmd := &GetICEServersCommand{
+// 		TURN_KEY_ID:        os.Getenv("TURN_KEY_ID"),
+// 		TURN_KEY_API_TOKEN: os.Getenv("TURN_KEY_API_TOKEN"),
+// 		TTL:                86400, // 24 hours
+// 	}
+
+// 	iceServers, err := GetICEServers(ctx, cmd)
+// 	if err != nil {
+// 		fmt.Printf("Error fetching ICE servers: %v\n", err)
+// 		return
+// 	}
+
+// 	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
+// 		ICEServers: iceServers,
+// 	})
+// 	if err != nil {
+// 		fmt.Printf("Error creating PeerConnection: %v\n", err)
+// 		return
+// 	}
+// 	defer peerConnection.Close()
+
+// 	peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+// 		if candidate == nil {
+// 			return
+// 		}
+// 		fmt.Printf("New ICE candidate: %s\n", candidate.ToJSON().Candidate)
+// 	})
+
+// 	peerConnection.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+// 		fmt.Printf("PeerConnection state changed: %s\n", state.String())
+// 	})
+
+// 	wait()
+// }
+
+// type GetICEServersCommand struct {
+// 	TURN_KEY_ID        string `json:"turn_key_id"`
+// 	TURN_KEY_API_TOKEN string `json:"turn_key_api_token"`
+// 	TTL                int    `json:"ttl"` // Time to live for the credentials in seconds
+// }
+
+// // getTurnCredentials fetches TURN credentials from Cloudflare
+// func GetICEServers(ctx context.Context, cmd *GetICEServersCommand) ([]webrtc.ICEServer, error) {
+// 	if cmd.TURN_KEY_ID == "" || cmd.TURN_KEY_API_TOKEN == "" {
+// 		return nil, fmt.Errorf("TURN_KEY_ID and TURN_KEY_API_TOKEN must be provided")
+// 	}
+
+// 	if cmd.TTL <= 0 {
+// 		cmd.TTL = 86400 // Default to 24 hours if TTL is not provided
+// 	}
+
+// 	data := map[string]interface{}{
+// 		"ttl": cmd.TTL,
+// 	}
+
+// 	jsonData, _ := json.Marshal(data)
+
+// 	url := fmt.Sprintf("https://rtc.live.cloudflare.com/v1/turn/keys/%s/credentials/generate-ice-servers", cmd.TURN_KEY_ID)
+// 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
+// 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cmd.TURN_KEY_API_TOKEN))
+// 	req.Header.Set("Content-Type", "application/json")
+
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to fetch ICE servers: %w", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode != http.StatusCreated {
+// 		return nil, fmt.Errorf("failed to fetch ICE servers: received status code %d", resp.StatusCode)
+// 	}
+
+// 	var v struct {
+// 		ICEServers []webrtc.ICEServer `json:"iceServers"`
+// 	}
+// 	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+// 		return nil, fmt.Errorf("failed to decode ICE servers response: %w", err)
+// 	}
+
+// 	return v.ICEServers, nil
+// }
+
+// var Version = "1"
+
+func main() {
+	f, err := os.Open("C:\\ProgramData\\FiveMTools\\screenshot1408267297")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open screenshot file: %v\n", err)
+		return
+	}
+	defer func() { _ = f.Close() }()
+
+	results := make([]*CaptureScreenshotItem, 0)
+	if err := json.NewDecoder(f).Decode(&results); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to decode screenshot data: %v\n", err)
+		return
+	}
+
+	for _, item := range results {
+		if item.Error != "" {
+			fmt.Fprintf(os.Stderr, "Error in display %d: %s\n", item.DisplayIndex, item.Error)
+			continue
+		}
+		fmt.Printf("Display %d: %s\n", item.DisplayIndex, item.Image)
+	}
+
+	return
+
+	if len(os.Args) > 1 && slices.Contains(os.Args, "-screenshot") {
+
+		path, _ := os.Executable()
+		name := filepath.Join(filepath.Dir(path), "screenshot.json")
+		file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to open screenshot file: %v\n", err)
+			return
+		}
+		defer func() { _ = file.Close() }()
+
+		results, err := CaptureScreenshot()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to capture screenshot: %v\n", err)
+			return
+		}
+
+		_ = json.NewEncoder(file).Encode(results)
+		_ = file.Sync()
+
+		return
+	}
+
+	// screenshotcommand, _ := os.Executable()
+	// screenshotcommand = fmt.Sprintf("%s screenshot", screenshotcommand)
+
+	// if err := runInUserSession(screenshotcommand); err != nil {
+	// 	// _ = elog.Error(1, fmt.Sprintf("Failed to run command in user session: %v", err))
+	// 	fmt.Fprintf(os.Stderr, "Failed to run command in user session: %v\n", err)
+	// }
+
+	// return
+
+	svcName := "fivemtestservice"
+	// isDebug := len(os.Args) > 1 && strings.ToLower(os.Args[1]) == "debug"
+
+	if inService, _ := svc.IsWindowsService(); inService {
+		runService(svcName, false)
+		return
+	}
+
+	log.Println(installService(svcName, "FiveM Tools Service"))
+	log.Println(startService(svcName))
+	_, _ = fmt.Scanln()
+	log.Println(controlService(svcName, svc.Stop, svc.Stopped))
+	log.Println(controlService(svcName, svc.Shutdown, svc.Stopped))
+	log.Println(removeService(svcName))
+}
+
+func exePath() (string, error) {
+	prog := os.Args[0]
+	p, err := filepath.Abs(prog)
+	if err != nil {
+		return "", err
+	}
+	fi, err := os.Stat(p)
+	if err == nil {
+		if !fi.Mode().IsDir() {
+			return p, nil
+		}
+		err = fmt.Errorf("%s is directory", p)
+	}
+	if filepath.Ext(p) == "" {
+		p += ".exe"
+		fi, err := os.Stat(p)
+		if err == nil {
+			if !fi.Mode().IsDir() {
+				return p, nil
+			}
+			err = fmt.Errorf("%s is directory", p)
+			return "", err
+		}
+	}
+	return "", err
+}
+
+func installService(name, desc string) error {
+	exepath, err := exePath()
+	if err != nil {
+		return err
+	}
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = m.Disconnect() }()
+	s, err := m.OpenService(name)
+	if err == nil {
+		_ = s.Close()
+		return fmt.Errorf("service %s already exists", name)
+	}
+	s, err = m.CreateService(name, exepath, mgr.Config{DisplayName: desc}, "is", "auto-started")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = s.Close() }()
+	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
+	if err != nil {
+		_ = s.Delete()
+		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+func removeService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = m.Disconnect() }()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("service %s is not installed", name)
+	}
+	defer func() { _ = s.Close() }()
+	err = s.Delete()
+	if err != nil {
+		return err
+	}
+	err = eventlog.Remove(name)
+	if err != nil {
+		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+func startService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = m.Disconnect() }()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	err = s.Start("is", "manual-started")
+	if err != nil {
+		return fmt.Errorf("could not start service: %v", err)
+	}
+	return nil
+}
+
+func controlService(name string, c svc.Cmd, to svc.State) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = m.Disconnect() }()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("could not access service: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+	status, err := s.Control(c)
+	if err != nil {
+		return fmt.Errorf("could not send control=%d: %v", c, err)
+	}
+	timeout := time.Now().Add(10 * time.Second)
+	for status.State != to {
+		if timeout.Before(time.Now()) {
+			return fmt.Errorf("timeout waiting for service to go to state=%d", to)
+		}
+		time.Sleep(300 * time.Millisecond)
+		status, err = s.Query()
+		if err != nil {
+			return fmt.Errorf("could not retrieve service status: %v", err)
+		}
+	}
+	return nil
+}
+
+var elog debug.Log
+
+type exampleService struct{}
+
+func getUsernameFromToken(token windows.Token) (string, error) {
+	var requiredLen uint32
+	// First call to get required buffer size
+	err := windows.GetTokenInformation(token, windows.TokenUser, nil, 0, &requiredLen)
+	if err != nil && err != syscall.ERROR_INSUFFICIENT_BUFFER {
+		return "", fmt.Errorf("GetTokenInformation (size) failed: %w", err)
+	}
+
+	buf := make([]byte, requiredLen)
+	err = windows.GetTokenInformation(token, windows.TokenUser, &buf[0], requiredLen, &requiredLen)
+	if err != nil {
+		return "", fmt.Errorf("GetTokenInformation failed: %w", err)
+	}
+
+	user := (*windows.Tokenuser)(unsafe.Pointer(&buf[0]))
+	sid := user.User.Sid
+
+	nameLen := uint32(256)
+	domainLen := uint32(256)
+	nameBuf := make([]uint16, nameLen)
+	domainBuf := make([]uint16, domainLen)
+	var use uint32
+	err = windows.LookupAccountSid(nil, sid, &nameBuf[0], &nameLen, &domainBuf[0], &domainLen, &use)
+	if err != nil {
+		return "", fmt.Errorf("LookupAccountSid failed: %w", err)
+	}
+	name := syscall.UTF16ToString(nameBuf[:nameLen])
+	domain := syscall.UTF16ToString(domainBuf[:domainLen])
+	return domain + `\` + name, nil
+}
+
+func runInUserSession(commandLine string) error {
+	var (
+		sessionID uint32
+		userToken windows.Token
+		err       error
+	)
+
+	sessionID = windows.WTSGetActiveConsoleSessionId()
+	if sessionID == 0xFFFFFFFF {
+		return fmt.Errorf("WTSGetActiveConsoleSessionId failed: no active session found")
+	}
+
+	if err := windows.WTSQueryUserToken(sessionID, &userToken); err != nil {
+		return fmt.Errorf("WTSQueryUserToken failed: %w", err)
+	}
+	defer func() { _ = userToken.Close() }()
+
+	var dupToken windows.Token
+	err = windows.DuplicateTokenEx(userToken, windows.MAXIMUM_ALLOWED, nil, windows.SecurityIdentification, windows.TokenPrimary, &dupToken)
+	if err != nil {
+		return fmt.Errorf("DuplicateTokenEx failed: %w", err)
+	}
+	defer func() { _ = dupToken.Close() }()
+
+	var readPipe, writePipe windows.Handle
+	sa := windows.SecurityAttributes{
+		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
+		InheritHandle:      1,
+		SecurityDescriptor: nil,
+	}
+	if err = windows.CreatePipe(&readPipe, &writePipe, &sa, 0); err != nil {
+		return fmt.Errorf("CreatePipe failed: %w", err)
+	}
+	defer func() { _ = windows.CloseHandle(readPipe) }()
+	defer func() { _ = windows.CloseHandle(writePipe) }()
+
+	var startupInfo windows.StartupInfo
+	startupInfo.Cb = uint32(unsafe.Sizeof(startupInfo))
+	startupInfo.Desktop, _ = syscall.UTF16PtrFromString("Winsta0\\Default")
+	// startupInfo.Flags = windows.STARTF_USESTDHANDLES
+	// startupInfo.StdOutput = writePipe
+	// startupInfo.StdErr = writePipe // Redirect stderr as well
+	// startupInfo.StdInput = windows.InvalidHandle
+
+	creationFlags := windows.CREATE_UNICODE_ENVIRONMENT | windows.NORMAL_PRIORITY_CLASS | windows.CREATE_NO_WINDOW
+
+	commandLinePtr, _ := syscall.UTF16PtrFromString(commandLine)
+
+	var procInfo windows.ProcessInformation
+	err = windows.CreateProcessAsUser(userToken, nil, commandLinePtr, nil, nil, false, uint32(creationFlags), nil, nil, &startupInfo, &procInfo)
+	if err != nil {
+		return fmt.Errorf("CreateProcessAsUser failed: %w", err)
+	}
+	defer func() { _ = windows.CloseHandle(procInfo.Process) }()
+	defer func() { _ = windows.CloseHandle(procInfo.Thread) }()
+	// _ = windows.CloseHandle(writePipe)
+
+	_, err = windows.WaitForSingleObject(procInfo.Process, windows.INFINITE)
+	if err != nil {
+		return fmt.Errorf("WaitForSingleObject failed: %w", err)
+	}
+	// _ = elog.Info(1, fmt.Sprintf("Command output: %s", output.String()))
+
+	var buf [4096]byte
+	var output bytes.Buffer
+	for {
+		var read uint32
+		err := windows.ReadFile(readPipe, buf[:], &read, nil)
+		if err != nil && err != windows.ERROR_BROKEN_PIPE {
+			break
+		}
+		if read == 0 {
+			break
+		}
+		output.Write(buf[:read])
+	}
+
+	_ = elog.Info(1, fmt.Sprintf("Command output: %s", output.String()))
+
+	return nil
+}
+
+func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	changes <- svc.Status{State: svc.StartPending}
+	// fasttick := time.Tick(500 * time.Millisecond)
+	// slowtick := time.Tick(2 * time.Second)
+	// tick := fasttick
+	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+
+	// if err := captureScreenshotInUserSession(); err != nil {
+	// 	_ = elog.Error(1, fmt.Sprintf("Failed to capture screenshot: %v", err))
+	// }
+
+	// file, _ := os.Create(filepath.Join(os.TempDir(), "screenshot_output.txt"))
+	// file.Write([]byte("Screenshot command executed successfully.\n"))
+	// defer func() { _ = file.Close() }()
+
+	screenshotcommand, _ := os.Executable()
+	screenshotcommand = fmt.Sprintf("%s -screenshot", screenshotcommand)
+
+	if err := runInUserSession(screenshotcommand); err != nil {
+		_ = elog.Error(1, fmt.Sprintf("Failed to run command in user session: %v", err))
+	}
+
+loop:
+	for {
+		select {
+		// case <-tick:
+		// beep()
+		case <-time.After(10 * time.Second):
+			continue
+		case c := <-r:
+			switch c.Cmd {
+			case svc.Interrogate:
+				changes <- c.CurrentStatus
+				// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+				time.Sleep(100 * time.Millisecond)
+				changes <- c.CurrentStatus
+			case svc.Stop, svc.Shutdown:
+				// golang.org/x/sys/windows/svc.TestExample is verifying this output.
+				testOutput := strings.Join(args, "-")
+				testOutput += fmt.Sprintf("-%d", c.Context)
+				_ = elog.Info(1, testOutput)
+				break loop
+			// case svc.Pause:
+			// 	changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
+			// tick = slowtick
+			// case svc.Continue:
+			// 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+			// tick = fasttick
+			default:
+				_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+			}
+		}
+	}
+	changes <- svc.Status{State: svc.StopPending}
+	return
+}
+
+func runService(name string, isDebug bool) {
+	var err error
+	if isDebug {
+		elog = debug.New(name)
+	} else {
+		elog, err = eventlog.Open(name)
+		if err != nil {
+			return
+		}
+	}
+	defer func() { _ = elog.Close() }()
+
+	_ = elog.Info(1, fmt.Sprintf("starting %s service", name))
+	run := svc.Run
+	if isDebug {
+		run = debug.Run
+	}
+	err = run(name, &exampleService{})
+	if err != nil {
+		_ = elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		return
+	}
+	_ = elog.Info(1, fmt.Sprintf("%s service stopped", name))
+}
+
+type CaptureScreenshotItem struct {
+	DisplayIndex  int             `json:"display_index"`
+	DisplayBounds image.Rectangle `json:"display_bounds"`
+	Image         string          `json:"image"`
+	Error         string          `json:"error"`
+}
+
+func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
+	results = make([]*CaptureScreenshotItem, 0)
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("CaptureScreenshot panicked: %v", r)
+		}
+	}()
+
+	n := screenshot.NumActiveDisplays()
+
+	for i := 0; i < n; i++ {
+		r := &CaptureScreenshotItem{
+			DisplayIndex:  i,
+			DisplayBounds: screenshot.GetDisplayBounds(i),
+		}
+
+		img, err := screenshot.CaptureRect(r.DisplayBounds)
+		if err != nil {
+			r.Error = fmt.Sprintf("failed to capture screenshot: %v", err)
+			results = append(results, r)
+			continue
+		}
+
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			r.Error = fmt.Sprintf("failed to encode screenshot: %v", err)
+			results = append(results, r)
+			continue
+		}
+
+		r.Image = base64.StdEncoding.EncodeToString(buf.Bytes())
+		results = append(results, r)
+	}
+
+	return results, nil
+}

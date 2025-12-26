@@ -1,0 +1,202 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"log"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/willywotz/fivem/mor/opus"
+	"github.com/willywotz/fivem/mor/portaudio"
+)
+
+var (
+	clients      = make(map[*websocket.Conn]bool)
+	clientsMutex = sync.RWMutex{}
+
+	// upgrader is used to upgrade HTTP connections to WebSocket connections
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins for simplicity
+		},
+	}
+
+	outgoing = make(chan outgoingMessage, 1024) // Channel for outgoing messages
+)
+
+type outgoingMessage struct {
+	C    *websocket.Conn
+	Data []byte
+}
+
+func server() {
+	log.Println("Starting server...")
+
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
+	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/", indexHandler)
+
+	go func() {
+		for msg := range outgoing {
+			clientsMutex.RLock()
+			_ = msg.C.WriteMessage(websocket.TextMessage, msg.Data)
+			clientsMutex.RUnlock()
+		}
+	}()
+
+	log.Println("Starting server on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "index.html")
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("WebSocket upgrade error:", err)
+		return
+	}
+	defer c.Close()
+
+	clientsMutex.Lock()
+	clients[c] = true
+	clientsMutex.Unlock()
+
+	log.Println("New client connected:", c.RemoteAddr())
+
+	defer func() {
+		clientsMutex.Lock()
+		delete(clients, c)
+		clientsMutex.Unlock()
+		c.Close()
+	}()
+
+	playback := make([]int16, frameSize)
+	outStream, err := portaudio.OpenDefaultStream(0, channels, sampleRate, frameSize, playback)
+	if err != nil {
+		log.Fatal("PortAudio output stream error:", err)
+	}
+	defer outStream.Close()
+	if err := outStream.Start(); err != nil {
+		log.Fatal("Output stream start error:", err)
+	}
+
+	decoder, err := opus.NewDecoder(sampleRate, channels)
+	if err != nil {
+		log.Fatal("Opus decoder error:", err)
+	}
+
+	var bytesReceived int64
+	lastReport := time.Now()
+
+	for {
+		messageType, p, err := c.NextReader()
+		if err != nil {
+			log.Println("Client disconnected:", c.RemoteAddr())
+			return
+		}
+
+		var buf bytes.Buffer
+		nRead, err := buf.ReadFrom(p)
+		if err != nil {
+			log.Println("Error reading message from client:", err)
+			return
+		}
+
+		bytesReceived += nRead
+
+		if time.Since(lastReport) > 10*time.Second {
+			bps := float64(bytesReceived) / time.Since(lastReport).Seconds()
+			log.Printf("Bandwidth from %s: %.2f bytes/sec", c.RemoteAddr(), bps)
+			bytesReceived = 0
+			lastReport = time.Now()
+		}
+
+		if messageType == websocket.TextMessage && buf.Len() == 4 && buf.String() == "ping" {
+			// log.Println("Ping received from client:", c.RemoteAddr())
+			outgoing <- outgoingMessage{C: c, Data: []byte("pong")}
+			continue
+		}
+
+		if messageType == websocket.TextMessage {
+			// clientsMutex.RLock()
+			// for client := range clients {
+			// 	if client == c {
+			// 		continue
+			// 	}
+			// 	outgoing <- outgoingMessage{C: client, Data: buf.Bytes()}
+			// }
+			// clientsMutex.RUnlock()
+
+			// continue
+
+			var data struct {
+				Type string `json:"type"`
+			}
+			if err := json.Unmarshal(buf.Bytes(), &data); err != nil {
+				log.Println("Error unmarshalling message:", err)
+				continue
+			}
+
+			if data.Type == "audio" {
+				var raw struct {
+					Data []int16 `json:"data"`
+				}
+				if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+					log.Println("Error unmarshalling message:", err)
+					continue
+				}
+				copy(playback, raw.Data)
+				if err := outStream.Write(); err != nil {
+					log.Println("Error writing to output stream:", err)
+				}
+				continue
+			}
+
+			if data.Type == "opus" {
+				var raw struct {
+					Data []byte `json:"data"`
+				}
+				if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+					log.Println("Error unmarshalling Opus message:", err)
+					continue
+				}
+				decoded := make([]int16, frameSize)
+				n, err := decoder.Decode(raw.Data, decoded)
+				if err != nil {
+					log.Println("Opus decode error:", err)
+					continue
+				}
+				_ = n
+				// Only write the decoded samples
+				// copy(playback, decoded[:n])
+				// if err := outStream.Write(); err != nil {
+				// 	log.Println("Error writing to output stream:", err)
+				// }
+
+				clientsMutex.RLock()
+				for client := range clients {
+					if client == c {
+						continue
+					}
+					m, _ := json.Marshal(map[string]any{"type": "pcm", "data": decoded[:n]})
+					outgoing <- outgoingMessage{C: client, Data: m}
+				}
+				clientsMutex.RUnlock()
+
+				continue
+			}
+
+			continue
+		}
+
+		log.Println("type:", messageType, "message:", buf.String())
+	}
+}

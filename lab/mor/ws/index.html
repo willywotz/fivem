@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+
+    <body>
+        <script>
+        let ws;
+        let pingInterval;
+
+        function connectWebSocket() {
+            if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = function() {
+                console.log('WebSocket connection established');
+                // pingInterval = setInterval(() => ws.send(new Uint16Array([24531, 1])), 1*1000);
+            };
+
+            ws.onmessage = function(event) {
+                // console.log('Message received:', event.data);
+                // const prefix = new Uint8Array(event.data.slice(0, 4));
+                // const wantPrefix = new Uint8Array([255, 127, 63, 15]);
+                // if (!prefix.every((value, index) => value === wantPrefix[index])) return;
+                // const targetMethod = new Uint8Array(event.data.slice(4, 12));
+                // const methodTextMessage = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 1]);
+                // if (targetMethod.every((value, index) => value === methodTextMessage[index])) {
+                //     const message = event.data.slice(12);
+                //     const text = new TextDecoder().decode(message);
+                //     console.log('Text message received:', text);
+                // }
+                //  else if (event.data.slice(4, 12).every((value, index) => value === new Uint8Array([0, 0, 0, 0, 0, 0, 0, 2])[index])) {
+                //     const blob = new Blob([event.data.slice(12)], { type: 'image/jpeg' });
+                //     const imageURL = URL.createObjectURL(blob);
+                //     console.log('Image received:', imageURL);
+                //     // Handle image blob
+                // }
+                const head = new Uint16Array(event.data.slice(0, 4));
+                const body = new TextDecoder().decode(event.data.slice(4));
+                console.log(`${head} ${body}`);
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket connection closed');
+                clearInterval(pingInterval);
+                setTimeout(connectWebSocket, 1000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                clearInterval(pingInterval);
+                setTimeout(connectWebSocket, 1000);
+            };
+        }
+
+        connectWebSocket();
+
+        function send(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.error('WebSocket is not open');
+                return;
+            }
+
+            const head = new Uint16Array([24531, 1<<1]);
+            const body = new TextEncoder().encode(message);
+            const data = new Uint16Array(head.byteLength + body.byteLength);
+            data.set(head);
+            data.set(body, head.byteLength / Uint16Array.BYTES_PER_ELEMENT);
+            ws.send(data);
+        }
+        </script>
+    </body>
+</html>

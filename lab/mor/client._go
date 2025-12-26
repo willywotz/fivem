@@ -1,0 +1,120 @@
+package main
+
+import (
+	"bytes"
+	"log"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/willywotz/fivem/mor/opus"
+	"github.com/willywotz/fivem/mor/portaudio"
+)
+
+const (
+	sampleRate = 48000
+	channels   = 2
+	frameSize  = 960 * channels
+)
+
+func client(serverUrl string) {
+	log.Println("Starting client...")
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered from panic:", r)
+			return
+		}
+
+		log.Println("client reconnecting...")
+		<-time.After(5 * time.Second) // wait for server to start
+		client(serverUrl)
+	}()
+
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
+	samples := make([]int16, frameSize)
+	stream, err := portaudio.OpenDefaultStream(channels, 0, sampleRate, frameSize, samples)
+	if err != nil {
+		log.Fatal("PortAudio stream error:", err)
+	}
+	defer stream.Close()
+
+	if err := stream.Start(); err != nil {
+		log.Fatal("Stream start error:", err)
+	}
+
+	encoder, err := opus.NewEncoder(sampleRate, channels, opus.AppAudio)
+	if err != nil {
+		log.Fatal("Opus encoder error:", err)
+	}
+	_ = encoder // to avoid unused variable error
+
+	c, _, err := websocket.DefaultDialer.Dial(serverUrl, nil)
+	if err != nil {
+		log.Fatal("Error connecting to server:", err)
+	}
+	defer c.Close()
+
+	log.Println("Connected to server:", serverUrl)
+
+	outgoing := make(chan interface{}, 100)
+
+	go func() {
+		for msg := range outgoing {
+			switch v := msg.(type) {
+			case string:
+				_ = c.WriteMessage(websocket.TextMessage, []byte(v))
+			case []byte:
+				_ = c.WriteMessage(websocket.BinaryMessage, v)
+			default:
+				_ = c.WriteJSON(v)
+			}
+		}
+	}()
+
+	go func() {
+		for range time.Tick(5 * time.Second) {
+			outgoing <- "ping"
+		}
+	}()
+
+	type message struct {
+		Type string `json:"type"`
+		Data []byte `json:"data"`
+	}
+
+	go func() {
+		for {
+			_ = stream.Read()
+			opusBuf := make([]byte, frameSize)
+			n, _ := encoder.Encode(samples, opusBuf)
+			outgoing <- message{Type: "opus", Data: opusBuf[:n]}
+		}
+	}()
+
+	for {
+		messageType, p, err := c.NextReader()
+		if err != nil {
+			log.Println("Error reading message:", err)
+			return
+		}
+
+		var buf bytes.Buffer
+		if _, err := buf.ReadFrom(p); err != nil {
+			log.Println("Error reading message:", err)
+			return
+		}
+
+		if messageType == websocket.TextMessage && buf.Len() == 4 && buf.String() == "ping" {
+			// log.Println("Ping received from server:", c.RemoteAddr())
+			outgoing <- "pong"
+			continue
+		}
+
+		if messageType == websocket.TextMessage && buf.Len() == 4 && buf.String() == "pong" {
+			// log.Println("Pong received from server:", c.RemoteAddr())
+			continue
+		}
+	}
+}

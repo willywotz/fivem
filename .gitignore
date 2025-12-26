@@ -1,12 +1,3 @@
-/microphone
-/image
-/cmd
-/dolphin
-/mor
-/audio
-/hojo
-/farm
-
 *.exe
 !MicrosoftEdgeWebview2Setup.exe
 

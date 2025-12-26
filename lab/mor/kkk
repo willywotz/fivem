@@ -1,0 +1,109 @@
+package main
+
+import (
+	"log"
+	"net/http"
+	"sync"
+
+	"github.com/gorilla/websocket"
+	"github.com/willywotz/fivem/mor/opus"
+	"github.com/willywotz/fivem/mor/portaudio"
+)
+
+const (
+	sampleRate      = 48000
+	channels        = 1
+	frameSize       = 960 // 20ms at 48kHz
+	websocketBuffer = 4096
+)
+
+var (
+	upgrader     = websocket.Upgrader{}
+	clients      = make(map[*websocket.Conn]struct{})
+	clientsMutex = sync.RWMutex{}
+)
+
+// Broadcast compressed audio frame to all clients
+func broadcastAudio(data []byte) {
+	clientsMutex.RLock()
+	defer clientsMutex.RUnlock()
+	for c := range clients {
+		err := c.WriteMessage(websocket.BinaryMessage, data)
+		if err != nil {
+			log.Println("Write error:", err)
+			c.Close()
+			delete(clients, c)
+		}
+	}
+}
+
+// WebSocket handler for browser clients
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Upgrade error:", err)
+		return
+	}
+	clientsMutex.Lock()
+	clients[c] = struct{}{}
+	clientsMutex.Unlock()
+	defer func() {
+		clientsMutex.Lock()
+		delete(clients, c)
+		clientsMutex.Unlock()
+		c.Close()
+	}()
+	for {
+		// Just keep connection alive
+		if _, _, err := c.NextReader(); err != nil {
+			return
+		}
+	}
+}
+
+// Capture audio, compress, and broadcast
+func audioLoop() {
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
+	samples := make([]int16, frameSize)
+	stream, err := portaudio.OpenDefaultStream(channels, 0, sampleRate, frameSize, samples)
+	if err != nil {
+		log.Fatal("PortAudio stream error:", err)
+	}
+	defer stream.Close()
+
+	enc, err := opus.NewEncoder(sampleRate, channels, opus.AppAudio)
+	if err != nil {
+		log.Fatal("Opus encoder error:", err)
+	}
+
+	if err := stream.Start(); err != nil {
+		log.Fatal("Stream start error:", err)
+	}
+
+	for {
+		if err := stream.Read(); err != nil {
+			log.Println("Stream read error:", err)
+			continue
+		}
+		// Compress with Opus
+		compressed := make([]byte, 4096)
+		n, err := enc.Encode(samples, compressed)
+		if err != nil {
+			log.Println("Opus encode error:", err)
+			continue
+		}
+		broadcastAudio(compressed[:n])
+	}
+}
+
+func main() {
+	go audioLoop()
+	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/client", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "client.html")
+	})
+	log.Println("Server started at :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}

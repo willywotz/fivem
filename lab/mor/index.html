@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+
+    <body>
+        <h1>WebSocket Client</h1>
+        <p>This is a simple WebSocket client that connects to a server.</p>
+        <button id="startButton">Start</button>
+
+        <script>
+        let isPaused = true;
+        document.getElementById('startButton').onclick = e => {
+            e.target.textContent = (isPaused = !isPaused) ? 'Start' : 'Stop';
+            console.log(isPaused ? 'Paused' : 'Resumed');
+        };
+
+        let ws;
+
+        // setInterval(function () {
+        //     if (ws && ws.readyState === WebSocket.OPEN) ws.send('ping');
+        // }, 15 * 1000);
+
+        function connectWebSocket() {
+            let a = ws && ws.readyState === WebSocket.CONNECTING;
+            let b = ws && ws.readyState === WebSocket.OPEN;
+
+            if (a || b) {
+                console.log('WebSocket is already connected or connecting');
+                return ws;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+            ws.onopen = _ => console.log('WebSocket connection established');
+            ws.onmessage = processMessage;
+            ws.onerror = e => console.error('WebSocket error:', e);
+            ws.onclose = _ => setTimeout(connectWebSocket, 5 * 1000);
+
+            return ws;
+        }
+
+        connectWebSocket();
+
+        function processMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'opus') return playOpusAudio(data.data);
+                if (data.type === 'pcm') return playPcmAudio(data.data);
+            } catch (error) {
+            }
+        }
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playOpusAudio(opusBase64Data) {
+            if (isPaused) return;
+
+            const opusArrayBuffer = base64ToArrayBuffer(opusBase64Data);
+
+            audioContext.decodeAudioData(opusArrayBuffer, (audioBuffer) => {
+                // `audioBuffer` คือข้อมูลเสียงที่ถูกถอดรหัสแล้ว
+                console.log("Decoded AudioBuffer:", audioBuffer);
+                console.log("Sample Rate:", audioBuffer.sampleRate, "Hz");
+                console.log("Number of Channels:", audioBuffer.numberOfChannels);
+                console.log("Duration:", audioBuffer.duration, "seconds");
+
+                // คุณสามารถนำ audioBuffer ไปเล่นได้ทันที
+                // สร้าง AudioBufferSourceNode
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                // เชื่อมต่อกับลำโพงของเครื่อง
+                source.connect(audioContext.destination);
+                // เริ่มเล่นเสียง
+                source.start();
+
+            }, (error) => {
+                console.error("Error decoding Opus data:", error);
+            });
+        }
+
+        function base64ToArrayBuffer(data) {
+            const binaryString = atob(data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function playPcmAudio(pcmData) {
+            if (isPaused) return;
+
+            // console.log("Received PCM data:", pcmData);
+
+            // const audioBuffer = new ArrayBuffer(pcmData.length);
+            // const view = new DataView(audioBuffer);
+
+            // for (let i = 0; i < data.length; i++) {
+            //     view.setInt8(i, data.charCodeAt(i));
+            // }
+
+            // audioContext.decodeAudioData(audioBuffer, (buffer) => {
+            //     const source = audioContext.createBufferSource();
+            //     source.buffer = buffer;
+            //     source.connect(audioContext.destination);
+            //     source.start();
+            // }, (error) => {
+            //     console.error("Error decoding PCM data:", error);
+            // });
+        }
+        </script>
+    </body>
+</html>
