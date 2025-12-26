@@ -33,6 +33,6 @@
       "CharsetID": "04B0"
     }
   },
-  "Manifest": "scripts/manifest.xml",
-  "IconPath": "scripts/icon.ico"
+  "Manifest": "manifest.xml",
+  "IconPath": "icon.ico"
 }
