@@ -1,0 +1,174 @@
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/pion/webrtc/v3"
+)
+
+const indexHTML = `<!DOCTYPE html>
+<html>
+<body>
+<button onclick="start()">Start Voice Call</button>
+<div id="log" style="white-space:pre;font-family:monospace;margin-top:12px;"></div>
+<script>
+function logmsg(s){ document.getElementById('log').textContent += s + "\\n"; }
+
+async function waitIceComplete(pc) {
+  if (pc.iceGatheringState === "complete") return;
+  await new Promise(resolve => {
+    function check() {
+      if (pc.iceGatheringState === "complete") {
+        pc.removeEventListener("icegatheringstatechange", check);
+        resolve();
+      }
+    }
+    pc.addEventListener("icegatheringstatechange", check);
+    check();
+  });
+}
+
+async function start() {
+  const pc = new RTCPeerConnection(); // localhost ok; ถ้าออกเน็ตค่อยใส่ STUN
+
+  pc.oniceconnectionstatechange = () => logmsg("ICE: " + pc.iceConnectionState);
+  pc.onconnectionstatechange = () => logmsg("PC: " + pc.connectionState);
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+  pc.ontrack = (e) => {
+    logmsg("Got remote track");
+    const audio = document.createElement("audio");
+    audio.autoplay = true;
+    audio.controls = true;
+    audio.srcObject = e.streams[0];
+    document.body.appendChild(audio);
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitIceComplete(pc); // สำคัญ: รอให้ SDP มี candidates
+
+  const res = await fetch("/offer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pc.localDescription),
+  });
+
+  const answer = await res.json();
+  await pc.setRemoteDescription(answer);
+  logmsg("Set remote answer OK");
+}
+</script>
+</body>
+</html>`
+
+func main() {
+	// WebRTC init
+	m := &webrtc.MediaEngine{}
+	if err := m.RegisterDefaultCodecs(); err != nil {
+		log.Fatal(err)
+	}
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
+
+	// หน้าเว็บ
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(indexHTML))
+	})
+
+	// offer/answer (สร้าง PeerConnection ต่อ 1 tab เรียก)
+	http.HandleFunc("/offer", func(w http.ResponseWriter, r *http.Request) {
+		var offer webrtc.SessionDescription
+		if err := json.NewDecoder(r.Body).Decode(&offer); err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		pc, err := api.NewPeerConnection(webrtc.Configuration{})
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		// เราจะ “เตรียม track ส่งกลับ” ไว้ก่อน CreateAnswer เพื่อให้ negotiate เข้า SDP
+		// และเตรียมตัวรับ audio ด้วย (ถ้าบาง browser ต้องการ)
+		if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio,
+			webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly},
+		); err != nil {
+			log.Println("AddTransceiver recvonly err:", err)
+		}
+
+		localTrack, err := webrtc.NewTrackLocalStaticRTP(
+			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2},
+			"audio", "loopback",
+		)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		if _, err := pc.AddTrack(localTrack); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) {
+			log.Println("ICE state:", s.String())
+		})
+		pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+			log.Println("PC state:", s.String())
+		})
+
+		// รับเสียงจาก browser แล้ว “เขียน RTP กลับ” ไปยัง localTrack
+		pc.OnTrack(func(remote *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
+			log.Println("OnTrack:", remote.Codec().MimeType)
+
+			// forward RTP packets (no decode/encode)
+			for {
+				pkt, _, readErr := remote.ReadRTP()
+				if readErr != nil {
+					log.Println("ReadRTP end:", readErr)
+					return
+				}
+				if writeErr := localTrack.WriteRTP(pkt); writeErr != nil {
+					log.Println("WriteRTP err:", writeErr)
+					return
+				}
+			}
+		})
+
+		if err := pc.SetRemoteDescription(offer); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		// รอ ICE gathering ให้เสร็จ เพื่อให้ answer มี candidates
+		gatherComplete := webrtc.GatheringCompletePromise(pc)
+
+		if err := pc.SetLocalDescription(answer); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		select {
+		case <-gatherComplete:
+		case <-time.After(3 * time.Second):
+			// ถ้าเครื่องช้า/ติดอะไร ก็ยังส่งไปก่อน
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(pc.LocalDescription())
+	})
+
+	log.Println("Open http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}

@@ -1,0 +1,102 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"math"
+	"net/http"
+	_ "net/http/pprof"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+)
+
+func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	a := app.New()
+	w := a.NewWindow("fivem")
+	w.Resize(fyne.NewSize(760, 420))
+
+	// --- Header (left title, right version) ---
+	title := widget.NewLabelWithStyle("fivem tools", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	title.TextStyle = fyne.TextStyle{Bold: true}
+	// title.TextSize = 22 // (Fyne 2.5+ รองรับบางธีม; ถ้าไม่เห็นผล ให้ใช้ RichText แทน)
+
+	version := widget.NewLabelWithStyle("v1.0.80", fyne.TextAlignTrailing, fyne.TextStyle{})
+	header := container.NewHBox(
+		title,
+		layout.NewSpacer(),
+		version,
+	)
+
+	// --- Row 1: Mic device select ---
+	micLabel := widget.NewLabel("input:")
+
+	// TODO: ใส่รายการอุปกรณ์จริง (Fyne ไม่มี API audio device ในตัว)
+	// ตอนนี้ mock list ตามภาพก่อน
+	devices := []string{
+		"Microphone (HyperX SoloCast)",
+		"Microphone (Realtek(R) Audio)",
+		"Line In (USB Audio Device)",
+	}
+	micSelect := widget.NewSelect(devices, func(string) {})
+	micSelect.SetSelected(devices[0])
+	micSelect.PlaceHolder = "select microphone..."
+
+	rowMic := container.NewGridWithColumns(2,
+		micLabel,
+		micSelect,
+	)
+
+	// --- Row 2: Volume slider + percent label ---
+	volLabel := widget.NewLabel("volume: 100%")
+	slider := widget.NewSlider(0, 100)
+	slider.Step = 1
+	slider.Value = 100
+	slider.OnChanged = func(v float64) {
+		p := int(math.Round(v))
+		volLabel.SetText(fmt.Sprintf("volume: %d%%", p))
+	}
+
+	// จัดให้เหมือนภาพ: label อยู่ซ้ายของ slider ในคอลัมน์ขวา
+	volRight := container.NewVBox(
+		volLabel,
+		slider,
+	)
+
+	// ให้คอลัมน์ซ้ายเป็น spacer เหมือนภาพ (เพราะแถวนี้อยู่ฝั่งขวา)
+	rowVol := container.NewGridWithColumns(2,
+		widget.NewLabel(""), // ช่องซ้ายว่าง
+		volRight,
+	)
+
+	// --- Content area (big empty space) ---
+	// ทำเป็นกรอบ/พื้นหลังโล่งๆ คล้ายในภาพ
+	emptyArea := container.NewBorder(nil, nil, nil, nil,
+		container.NewPadded(widget.NewLabel("")),
+	)
+
+	// --- Put together ---
+	divider := widget.NewSeparator()
+	top := container.NewVBox(
+		container.NewPadded(header),
+		divider,
+		container.NewPadded(rowMic),
+		container.NewPadded(rowVol),
+	)
+
+	// Border: top fixed, center expands
+	root := container.NewBorder(top, nil, nil, nil, emptyArea)
+
+	// Optional: icon / theme tweaks
+	// w.SetIcon(theme.FyneLogo())
+
+	w.SetContent(root)
+	w.ShowAndRun()
+}
