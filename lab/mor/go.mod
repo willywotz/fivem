@@ -1,12 +1,8 @@
 module github.com/willywotz/fivem/mor
 
-go 1.24.3
+go 1.25.0
 
-require (
-	github.com/bobertlo/go-mpg123 v0.0.0-20211210004329-c83f21a0fd39
-	github.com/gordonklaus/portaudio v0.0.0-20250206071425-98a94950218b
-	github.com/pion/mediadevices v0.7.1
-)
+require github.com/pion/mediadevices v0.7.1
 
 require (
 	github.com/blackjack/webcam v0.6.1 // indirect
@@ -29,7 +25,7 @@ require (
 	github.com/pion/webrtc/v4 v4.0.9 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
-	golang.org/x/image v0.23.0 // indirect
+	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 )
