@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -100,42 +103,86 @@ func InitElogClient() (func() error, error) {
 	return elogClient.Close, err
 }
 
-// logf and errorf are the one logging path. They write to elog (the service
-// event log) when set, else elogClient (the bootstrap event log), else stderr.
-func logf(format string, a ...any)   { emit(false, format, a...) }
-func errorf(format string, a ...any) { emit(true, format, a...) }
+func init() {
+	slog.SetDefault(slog.New(&eventLogHandler{}))
+}
 
-func emit(isError bool, format string, a ...any) {
-	msg := fmt.Sprintf(format+"\n", a...)
-	var sink debug.Log
+// currentSink returns the active event log: elog in the service process,
+// elogClient in the bootstrap process, or nil before either is set.
+func currentSink() debug.Log {
 	switch {
-	case elog != nil: // service process
-		sink = elog
-	case elogClient != nil: // bootstrap process
-		sink = elogClient
+	case elog != nil:
+		return elog
+	case elogClient != nil:
+		return elogClient
 	default:
-		fmt.Fprint(os.Stderr, msg)
+		return nil
+	}
+}
+
+// eventLogHandler is a slog.Handler that writes records to the Windows event
+// log (currentSink), or to stderr when no event log is open yet. Attributes are
+// rendered as key=value; the event log records the timestamp itself.
+type eventLogHandler struct {
+	attrs []slog.Attr
+}
+
+func (h *eventLogHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *eventLogHandler) Handle(_ context.Context, r slog.Record) error {
+	var b strings.Builder
+	b.WriteString(r.Message)
+	appendAttr := func(a slog.Attr) bool {
+		fmt.Fprintf(&b, " %s=%v", a.Key, a.Value.Any())
+		return true
+	}
+	for _, a := range h.attrs {
+		appendAttr(a)
+	}
+	r.Attrs(appendAttr)
+	msg := b.String()
+
+	sink := currentSink()
+	switch {
+	case sink == nil:
+		_, err := fmt.Fprintln(os.Stderr, msg)
+		return err
+	case r.Level >= slog.LevelError:
+		return sink.Error(1, msg)
+	case r.Level >= slog.LevelWarn:
+		return sink.Warning(1, msg)
+	default:
+		return sink.Info(1, msg)
+	}
+}
+
+func (h *eventLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &eventLogHandler{attrs: append(append([]slog.Attr{}, h.attrs...), attrs...)}
+}
+
+func (h *eventLogHandler) WithGroup(string) slog.Handler { return h }
+
+// logStep logs the result of a startup step: an error when it failed, else ok.
+func logStep(name string, err error) {
+	if err != nil {
+		slog.Error(name, "err", err)
 		return
 	}
-	if isError {
-		_ = sink.Error(1, msg)
-	} else {
-		_ = sink.Info(1, msg)
-	}
+	slog.Info(name, "ok", true)
 }
 
 func forceTakeScreenshot() {
 	path, _ := os.Executable()
 	f, err := os.CreateTemp(filepath.Dir(path), "screenshot")
 	if err != nil {
-		errorf("failed to create temp file: %v", err)
+		slog.Error("failed to create temp file", "err", err)
 		return
 	}
 	defer func() { _ = f.Close() }()
 
 	results, err := CaptureScreenshot()
 	if err != nil {
-		errorf("failed to capture screenshot: %v", err)
+		slog.Error("failed to capture screenshot", "err", err)
 		return
 	}
 
@@ -221,7 +268,7 @@ func runInUserSession(commandLine string) (string, error) {
 		output.Write(buf[:read])
 	}
 
-	logf("Command output: %s", output.String())
+	slog.Info("command output", "output", output.String())
 
 	return output.String(), nil
 }

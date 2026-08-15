@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"syscall"
@@ -57,7 +58,7 @@ func becomeAdmin() error {
 		uintptr(1),                       // nShowCmd SW_NORMAL
 	)
 	if err != nil && err != syscall.Errno(0) /* ERROR_SUCCESS */ {
-		errorf("failed to elevate privileges: %v", err)
+		slog.Error("failed to elevate privileges", "err", err)
 	}
 
 	os.Exit(0) // Exit the current process after starting the new one with admin privileges

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -26,7 +27,7 @@ func ui() {
 	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {
 		devices, err := getAudioInputDevices()
 		if err != nil {
-			errorf("Error getting audio input devices: %v", err)
+			slog.Error("error getting audio input devices", "err", err)
 			w.Eval(fmt.Sprintf("alert('Error getting audio input devices: %v');", err.Error()))
 			return []AudioDevice{}
 		}
@@ -48,7 +49,7 @@ func ui() {
 			}
 
 			if err := setAudioVolume(a, b); err != nil {
-				errorf("Error setting volume: %v", err)
+				slog.Error("error setting volume", "err", err)
 				w.Eval(fmt.Sprintf("alert('Error setting volume: %v');", err.Error()))
 			}
 		}
@@ -59,7 +60,7 @@ func ui() {
 		defer volumeMu.Unlock()
 
 		if endpointId == "" {
-			errorf("Endpoint ID cannot be empty.")
+			slog.Error("endpoint id cannot be empty")
 			w.Eval("alert('Endpoint ID cannot be empty.');")
 			return
 		}
@@ -72,7 +73,7 @@ func ui() {
 		defer volumeMu.Unlock()
 
 		if volume < 0 || volume > 100 {
-			errorf("Invalid volume level: %d. Must be between 0 and 100.", volume)
+			slog.Error("invalid volume level", "volume", volume)
 			w.Eval(fmt.Sprintf("alert('Invalid volume level: %d. Must be between 0 and 100.');", volume))
 			return
 		}

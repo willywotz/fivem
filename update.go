@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"syscall"
 	"time"
@@ -19,12 +20,12 @@ func update() error {
 
 	go func() {
 		if err := handleUpdate(); err != nil {
-			errorf("Error checking for updates: %v", err)
+			slog.Error("error checking for updates", "err", err)
 		}
 
 		for range time.NewTicker(5 * time.Minute).C {
 			if err := handleUpdate(); err != nil {
-				errorf("Error checking for updates: %v", err)
+				slog.Error("error checking for updates", "err", err)
 			}
 		}
 	}()
@@ -41,7 +42,7 @@ func handleUpdate() error {
 	}
 
 	if release.GreaterThan(version) {
-		logf("Updated to version %s, restarting...", release.Version())
+		slog.Info("updated, restarting", "version", release.Version())
 
 		if inService, _ := svc.IsWindowsService(); inService {
 			os.Exit(1)

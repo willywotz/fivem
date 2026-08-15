@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"syscall"
 	"time"
 	"unsafe"
@@ -178,7 +179,7 @@ func sendKeyInput(vkCode uint16, scanCode uint16, flags uint32) {
 	)
 
 	if ret != nInputs {
-		errorf("SendInput failed to send all inputs. Sent: %d, Expected: %d, Error: %v", ret, nInputs, err)
+		slog.Error("SendInput incomplete", "sent", ret, "expected", nInputs, "err", err)
 	}
 }
 
@@ -187,7 +188,7 @@ func sendKeyInput(vkCode uint16, scanCode uint16, flags uint32) {
 func PressAndRelease(vkCode uint16) {
 	scanCodeVal, _, err := procMapVirtualKeyW.Call(uintptr(vkCode), uintptr(0)) // 0 means MAPVK_VK_TO_VSC
 	if scanCodeVal == 0 && err != nil {
-		errorf("Error mapping virtual key: %v", err)
+		slog.Error("error mapping virtual key", "err", err)
 		return
 	}
 

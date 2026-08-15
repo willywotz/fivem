@@ -43,15 +43,21 @@ The auto updater runs without any visible effect on the user.
 
 ## Logging
 
-`logf` (info) and `errorf` (error) are the one log path. Both call `emit`,
-which writes to `elog` (the service event log) when the service process set it,
-else `elogClient` (the bootstrap event log), else standard error. `errorf`
-writes at error level, `logf` at info level. So all logs land in the service
-event log when the code runs as the service, and in the client event log when
-the code runs as the bootstrap process.
+The code logs with the standard library `log/slog`. `slog.Info` and `slog.Error`
+carry structured attributes, for example
+`slog.Error("failed to post status", "err", err)`.
 
-The stdlib `log` package, direct `elog`/`elogClient` calls, and `fmt.Print`
-debug output are not used for logging any more; the one exception is the
-`screenshot:<path>` line on standard output, which is protocol output, not a
-log. Per-keystroke trace prints in `keyboard.go` were removed, because they
-would flood the event log.
+The default logger uses `eventLogHandler`, a small `slog.Handler` in `helper.go`.
+For each record it renders `message key=value ...` and writes it to the active
+event log through `currentSink`: `elog` (the service event log) in the service
+process, else `elogClient` (the bootstrap event log), else standard error. It
+maps `slog.LevelError` to `Error`, `slog.LevelWarn` to `Warning`, and lower
+levels to `Info`. The event log records the timestamp, so the handler does not
+add one.
+
+`logStep(name, err)` logs the result of a startup step: an error when it failed,
+else `ok`.
+
+The one output that is not a log is the `screenshot:<path>` line on standard
+output; that is protocol output the caller reads. Per-keystroke trace prints in
+`keyboard.go` were removed, because they would flood the event log.

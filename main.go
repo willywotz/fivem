@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -29,7 +30,7 @@ var (
 
 func main() {
 	if runtime.GOOS != "windows" {
-		errorf("This code is specific to Windows.")
+		slog.Error("this code is specific to windows")
 		return
 	}
 
@@ -39,11 +40,11 @@ func main() {
 	for _, arg := range os.Args {
 		switch arg {
 		case "-v", "--version":
-			logf("Version: %s", version)
+			slog.Info("version", "version", version)
 			return
 		case "-d", "--debug":
 			localDebug = true
-			logf("Debug mode enabled")
+			slog.Info("debug mode enabled")
 		case "-no-become-admin":
 			noBecomeAdmin = true
 		case "-no-defender-exclude":
@@ -71,19 +72,19 @@ func main() {
 		return
 	}
 
-	logf("%v", becomeAdmin())
-	logf("%v", defenderExclude(svcName))
-	logf("%v", update())
-	logf("%v", installService(svcName, svcDisplayName))
-	logf("%v", verifyExecuteServicePath(svcName))
-	logf("%v", verifyRecoveryService(svcName))
-	logf("%v", startService(svcName))
+	logStep("become admin", becomeAdmin())
+	logStep("defender exclude", defenderExclude(svcName))
+	logStep("update", update())
+	logStep("install service", installService(svcName, svcDisplayName))
+	logStep("verify execute service path", verifyExecuteServicePath(svcName))
+	logStep("verify recovery service", verifyRecoveryService(svcName))
+	logStep("start service", startService(svcName))
 
 	elogClientCloser, _ := InitElogClient()
 	defer func() { _ = elogClientCloser() }()
 
 	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		errorf("failed to initialize OLE: %v", err)
+		slog.Error("failed to initialize OLE", "err", err)
 		return
 	}
 	defer ole.CoUninitialize()
