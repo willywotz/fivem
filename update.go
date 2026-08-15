@@ -55,7 +55,7 @@ func handleUpdate() error {
 		if _, err := os.StartProcess(exe, os.Args, &os.ProcAttr{
 			Files: []*os.File{nil, nil, nil},
 			Sys: &syscall.SysProcAttr{
-				CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
+				CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NO_WINDOW,
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to restart: %w", err)
