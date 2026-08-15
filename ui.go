@@ -1,86 +1,138 @@
 package main
 
 import (
-	"embed"
-	"fmt"
+	"image/color"
 	"log/slog"
-	"sync"
+	"os"
+	"strconv"
 	"time"
 
-	webview "github.com/webview/webview_go"
+	"gioui.org/app"
+	"gioui.org/font"
+	"gioui.org/font/gofont"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/text"
+	"gioui.org/unit"
+	"gioui.org/widget"
+	"gioui.org/widget/material"
+
+	"github.com/willywotz/fivem/internal/audioctl"
 )
 
-//go:embed templates/*
-var templates embed.FS
-
-var indexFile, _ = templates.ReadFile("templates/index.html")
-
 func ui() {
-	w := webview.New(false)
-	defer w.Destroy()
+	control := audioctl.New()
 
-	w.SetTitle("fivem")
-	w.SetSize(480, 320, webview.HintFixed)
-
-	_ = w.Bind("getVersion", func() string { return version })
-
-	_ = w.Bind("getAudioInputDevices", func() []AudioDevice {
-		devices, err := getAudioInputDevices()
-		if err != nil {
-			slog.Error("error getting audio input devices", "err", err)
-			w.Eval(fmt.Sprintf("alert('Error getting audio input devices: %v');", err.Error()))
-			return []AudioDevice{}
+	// Enumerate devices on this goroutine, where COM was initialized in main.
+	devices, err := getAudioInputDevices()
+	if err != nil {
+		slog.Error("error getting audio input devices", "err", err)
+	}
+	for _, d := range devices {
+		if d.IsDefaultAudioEndpoint {
+			control.SetEndpoint(d.ID)
 		}
-		return devices
-	})
+	}
 
-	var volumeMu sync.Mutex
-	var currentEndpointId string
-	var currentVolume float32 = 1.0
+	go pinVolume(control)
 
 	go func() {
-		for range time.Tick(100 * time.Millisecond) {
-			volumeMu.Lock()
-			a, b := currentEndpointId, currentVolume
-			volumeMu.Unlock()
-
-			if a == "" || b < 0 || b > 1.0 {
-				continue
-			}
-
-			if err := setAudioVolume(a, b); err != nil {
-				slog.Error("error setting volume", "err", err)
-				w.Eval(fmt.Sprintf("alert('Error setting volume: %v');", err.Error()))
-			}
+		w := new(app.Window)
+		w.Option(app.Title("fivem tools"), app.Size(unit.Dp(480), unit.Dp(320)))
+		if err := runUI(w, devices, control, err); err != nil {
+			slog.Error("ui loop failed", "err", err)
 		}
+		os.Exit(0)
 	}()
 
-	_ = w.Bind("setVolumeEndpointId", func(endpointId string) {
-		volumeMu.Lock()
-		defer volumeMu.Unlock()
+	app.Main()
+}
 
-		if endpointId == "" {
-			slog.Error("endpoint id cannot be empty")
-			w.Eval("alert('Endpoint ID cannot be empty.');")
-			return
+// pinVolume re-applies the selected volume to the selected endpoint every
+// 100 ms so the level stays pinned against outside changes.
+func pinVolume(c *audioctl.Control) {
+	for range time.Tick(100 * time.Millisecond) {
+		id, v := c.Snapshot()
+		if id == "" || v < 0 || v > 1 {
+			continue
 		}
-
-		currentEndpointId = endpointId
-	})
-
-	_ = w.Bind("setVolume", func(volume int) {
-		volumeMu.Lock()
-		defer volumeMu.Unlock()
-
-		if volume < 0 || volume > 100 {
-			slog.Error("invalid volume level", "volume", volume)
-			w.Eval(fmt.Sprintf("alert('Invalid volume level: %d. Must be between 0 and 100.');", volume))
-			return
+		if err := setAudioVolume(id, v); err != nil {
+			slog.Error("error setting volume", "err", err)
 		}
+	}
+}
 
-		currentVolume = float32(volume) / 100.0
-	})
+func runUI(w *app.Window, devices []AudioDevice, c *audioctl.Control, loadErr error) error {
+	th := material.NewTheme()
+	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 
-	w.SetHtml(string(indexFile))
-	w.Run()
+	var deviceList widget.List
+	deviceList.Axis = layout.Vertical
+
+	rows := make([]widget.Clickable, len(devices))
+	selected := -1
+	for i, d := range devices {
+		if d.IsDefaultAudioEndpoint {
+			selected = i
+		}
+	}
+
+	var vol widget.Float
+	vol.Value = 1
+
+	var ops op.Ops
+	for {
+		switch e := w.Event().(type) {
+		case app.DestroyEvent:
+			return e.Err
+		case app.FrameEvent:
+			gtx := app.NewContext(&ops, e)
+
+			for i := range rows {
+				if rows[i].Clicked(gtx) {
+					selected = i
+					c.SetEndpoint(devices[i].ID)
+				}
+			}
+			c.SetVolume(vol.Value)
+
+			layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween}.Layout(gtx,
+					// Header: title + version
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceBetween}.Layout(gtx,
+							layout.Rigid(material.H6(th, "fivem tools").Layout),
+							layout.Rigid(material.Body2(th, version).Layout),
+						)
+					}),
+					// Error line (only when device load failed)
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if loadErr == nil {
+							return layout.Dimensions{}
+						}
+						l := material.Body2(th, "Error: "+loadErr.Error())
+						l.Color = color.NRGBA{R: 0xB0, A: 0xFF}
+						return l.Layout(gtx)
+					}),
+					// Device picker
+					layout.Rigid(material.Body1(th, "Audio input device").Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return material.List(th, &deviceList).Layout(gtx, len(devices),
+							func(gtx layout.Context, i int) layout.Dimensions {
+								label := material.Body1(th, devices[i].Name)
+								if i == selected {
+									label.Font.Weight = font.Bold
+								}
+								return material.Clickable(gtx, &rows[i], label.Layout)
+							})
+					}),
+					// Volume
+					layout.Rigid(material.Body1(th, "Volume: "+strconv.Itoa(int(vol.Value*100))+"%").Layout),
+					layout.Rigid(material.Slider(th, &vol).Layout),
+				)
+			})
+
+			e.Frame(gtx.Ops)
+		}
+	}
 }

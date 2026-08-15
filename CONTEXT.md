@@ -61,3 +61,12 @@ else `ok`.
 The one output that is not a log is the `screenshot:<path>` line on standard
 output; that is protocol output the caller reads. Per-keystroke trace prints in
 `keyboard.go` were removed, because they would flood the event log.
+
+## UI
+
+`ui()` builds the config window with Gio (`gioui.org`), not webview. It shows
+the version, a scrollable list of capture audio devices, and a volume slider
+(0-100%). Picking a device or moving the slider updates `audioctl.Control`.
+`pinVolume` re-applies the selected volume to the selected endpoint every
+100 ms. Gio needs no cgo on Windows, so the build has no cgo dependency and
+needs no WebView2 runtime.
