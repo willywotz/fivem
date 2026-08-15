@@ -27,26 +27,23 @@ jobs:
             ~\go\pkg\mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
-      - name: Install WebView2 Runtime
-        run: |
-          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "MicrosoftEdgeWebview2Setup.exe"
-          Start-Process .\MicrosoftEdgeWebview2Setup.exe -ArgumentList "/silent","/install" -Wait
-        shell: pwsh
-
-      - name: Install MinGW-w64
-        run: choco install mingw -y
-        shell: pwsh
-
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: 'go.mod'
           cache: false
 
+      - name: test
+        run: go test ./internal/...
+        shell: pwsh
+
       - name: build go binary
+        env:
+          CGO_ENABLED: '0'
         run: |
           go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@53cb51b8aa6b6b62ab8196e66a766ea7598c67fa -64 -file-version '${{ github.ref_name }}' -product-version '${{ github.ref_name }}'
           go build -ldflags="-s -w -H windowsgui -X 'main.version=${{ github.ref_name }}' -X 'main.BaseURL=${{ vars.FIVEM_BASE_URL }}'" -o fivem-windows-amd64.exe .
+        shell: pwsh
 
       - name: upload to action artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
