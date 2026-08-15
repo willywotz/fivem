@@ -6,3 +6,5 @@ resource.syso
 *.old
 *.new
 *.pem
+
+/.superpowers/
