@@ -67,6 +67,12 @@ output; that is protocol output the caller reads. Per-keystroke trace prints in
 `ui()` builds the config window with Gio (`gioui.org`), not webview. It shows
 the version, a scrollable list of capture audio devices, and a volume slider
 (0-100%). Picking a device or moving the slider updates `audioctl.Control`.
-`pinVolume` re-applies the selected volume to the selected endpoint every
-100 ms. Gio needs no cgo on Windows, so the build has no cgo dependency and
-needs no WebView2 runtime.
+Gio needs no cgo on Windows, so the build has no cgo dependency and needs no
+WebView2 runtime.
+
+All WASAPI work runs on one goroutine, `audioWorker`. It locks its OS thread and
+initializes a COM apartment (WASAPI needs COM on the calling thread), enumerates
+the input devices once, then pins the selected volume every 100 ms. It treats the
+`S_FALSE` and `RPC_E_CHANGED_MODE` results from `CoInitializeEx` as success,
+because the thread may already have a COM apartment. A failed volume apply shows
+as an inline "Apply error" line in the window.

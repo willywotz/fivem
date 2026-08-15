@@ -1,5 +1,4 @@
 *.exe
-!MicrosoftEdgeWebview2Setup.exe
 
 .env
 resource.syso

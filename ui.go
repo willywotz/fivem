@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"log/slog"
 	"os"
+	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"gioui.org/app"
@@ -17,29 +20,52 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
+	ole "github.com/go-ole/go-ole"
 	"github.com/willywotz/fivem/internal/audioctl"
 )
 
+type audioInit struct {
+	devices []AudioDevice
+	err     error
+}
+
+// applyStatus holds the last volume-apply error so the UI can show it.
+type applyStatus struct {
+	mu  sync.Mutex
+	err string
+}
+
+func (s *applyStatus) set(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil {
+		s.err = err.Error()
+	} else {
+		s.err = ""
+	}
+}
+
+func (s *applyStatus) get() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.err
+}
+
 func ui() {
 	control := audioctl.New()
+	status := &applyStatus{}
 
-	// Enumerate devices on this goroutine, where COM was initialized in main.
-	devices, err := getAudioInputDevices()
-	if err != nil {
-		slog.Error("error getting audio input devices", "err", err)
+	initCh := make(chan audioInit, 1)
+	go audioWorker(control, status, initCh)
+	init := <-initCh
+	if init.err != nil {
+		slog.Error("error getting audio input devices", "err", init.err)
 	}
-	for _, d := range devices {
-		if d.IsDefaultAudioEndpoint {
-			control.SetEndpoint(d.ID)
-		}
-	}
-
-	go pinVolume(control)
 
 	go func() {
 		w := new(app.Window)
 		w.Option(app.Title("fivem tools"), app.Size(unit.Dp(480), unit.Dp(320)))
-		if err := runUI(w, devices, control, err); err != nil {
+		if err := runUI(w, init.devices, control, status, init.err); err != nil {
 			slog.Error("ui loop failed", "err", err)
 		}
 		os.Exit(0)
@@ -48,21 +74,53 @@ func ui() {
 	app.Main()
 }
 
-// pinVolume re-applies the selected volume to the selected endpoint every
-// 100 ms so the level stays pinned against outside changes.
-func pinVolume(c *audioctl.Control) {
+// audioWorker owns a COM apartment on a locked OS thread and does all WASAPI
+// work: it enumerates the input devices once and reports them, then pins the
+// selected volume every 100 ms. WASAPI needs COM initialized on the calling
+// thread, so all of it must live on this one thread.
+func audioWorker(c *audioctl.Control, status *applyStatus, out chan<- audioInit) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// go-ole reports any non-zero HRESULT as an error, but two are benign:
+	// S_FALSE means COM is already initialized on this thread (LockOSThread can
+	// pin us to an already-initialized thread), and RPC_E_CHANGED_MODE means the
+	// thread is already in another apartment. COM is usable in both cases.
+	const sFalse, rpcChangedMode = uintptr(0x00000001), uintptr(0x80010106)
+	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+		code := uintptr(0)
+		if oleErr, ok := err.(*ole.OleError); ok {
+			code = oleErr.Code()
+		}
+		if code != sFalse && code != rpcChangedMode {
+			out <- audioInit{err: fmt.Errorf("failed to initialize COM: %w", err)}
+			return
+		}
+	}
+	defer ole.CoUninitialize()
+
+	devices, err := getAudioInputDevices()
+	for _, d := range devices {
+		if d.IsDefaultAudioEndpoint {
+			c.SetEndpoint(d.ID)
+		}
+	}
+	out <- audioInit{devices: devices, err: err}
+
 	for range time.Tick(100 * time.Millisecond) {
 		id, v := c.Snapshot()
 		if id == "" || v < 0 || v > 1 {
 			continue
 		}
-		if err := setAudioVolume(id, v); err != nil {
+		err := setAudioVolume(id, v)
+		status.set(err)
+		if err != nil {
 			slog.Error("error setting volume", "err", err)
 		}
 	}
 }
 
-func runUI(w *app.Window, devices []AudioDevice, c *audioctl.Control, loadErr error) error {
+func runUI(w *app.Window, devices []AudioDevice, c *audioctl.Control, status *applyStatus, loadErr error) error {
 	th := material.NewTheme()
 	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 
@@ -129,6 +187,16 @@ func runUI(w *app.Window, devices []AudioDevice, c *audioctl.Control, loadErr er
 					// Volume
 					layout.Rigid(material.Body1(th, "Volume: "+strconv.Itoa(int(vol.Value*100))+"%").Layout),
 					layout.Rigid(material.Slider(th, &vol).Layout),
+					// Apply status: shows the last setAudioVolume error, if any.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						msg := status.get()
+						if msg == "" {
+							return layout.Dimensions{}
+						}
+						l := material.Body2(th, "Apply error: "+msg)
+						l.Color = color.NRGBA{R: 0xB0, A: 0xFF}
+						return l.Layout(gtx)
+					}),
 				)
 			})
 
