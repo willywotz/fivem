@@ -17,14 +17,12 @@ func update() error {
 		return nil
 	}
 
-	if err := handleUpdate(); err != nil {
-		failedf("Error checking for updates: %v", err)
-	}
-
-	ticker := time.NewTicker(5 * time.Minute)
-
 	go func() {
-		for range ticker.C {
+		if err := handleUpdate(); err != nil {
+			failedf("Error checking for updates: %v", err)
+		}
+
+		for range time.NewTicker(5 * time.Minute).C {
 			if err := handleUpdate(); err != nil {
 				failedf("Error checking for updates: %v", err)
 			}
@@ -35,8 +33,6 @@ func update() error {
 }
 
 func handleUpdate() error {
-	fmt.Println("Checking for updates...")
-
 	ctx := context.Background()
 	repository := selfupdate.ParseSlug("willywotz/fivem")
 	release, err := selfupdate.UpdateSelf(ctx, version, repository)
@@ -57,9 +53,9 @@ func handleUpdate() error {
 		}
 
 		if _, err := os.StartProcess(exe, os.Args, &os.ProcAttr{
-			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			Files: []*os.File{nil, nil, nil},
 			Sys: &syscall.SysProcAttr{
-				CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+				CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
 			},
 		}); err != nil {
 			return fmt.Errorf("failed to restart: %w", err)
