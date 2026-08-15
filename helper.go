@@ -101,10 +101,14 @@ func InitElogClient() (func() error, error) {
 }
 
 func failedf(format string, a ...any) {
-	if elogClient != nil {
-		_ = elogClient.Error(1, fmt.Sprintf(format+"\n", a...))
-	} else {
-		fmt.Fprintf(os.Stderr, format+"\n", a...)
+	msg := fmt.Sprintf(format+"\n", a...)
+	switch {
+	case elog != nil: // service process
+		_ = elog.Error(1, msg)
+	case elogClient != nil: // bootstrap process
+		_ = elogClient.Error(1, msg)
+	default:
+		fmt.Fprint(os.Stderr, msg)
 	}
 }
 

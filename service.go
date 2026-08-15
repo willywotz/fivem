@@ -54,7 +54,7 @@ loop:
 // stays responsive to Stop and Interrogate while a check or download runs.
 func serviceUpdateLoop() {
 	if err := handleUpdate(); err != nil {
-		_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+		failedf("auto update failed: %v", err)
 	}
 
 	ticker := time.NewTicker(5 * time.Minute)
@@ -62,7 +62,7 @@ func serviceUpdateLoop() {
 
 	for range ticker.C {
 		if err := handleUpdate(); err != nil {
-			_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+			failedf("auto update failed: %v", err)
 		}
 	}
 }

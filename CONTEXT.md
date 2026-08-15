@@ -40,3 +40,11 @@ The auto updater runs without any visible effect on the user.
 - `eventlog.InstallAsEventCreate` registers the log source at install time.
   `runService` opens the source with `eventlog.Open` and falls back to a debug
   logger if the open fails.
+
+## Logging
+
+`failedf` is the one log path. It writes to `elog` (the service event log) when
+the service process set it, else to `elogClient` (the bootstrap event log), else
+to standard error. So the update logs, and all `failedf` logs, land in the
+service event log when the code runs as the service, and in the client event log
+when the code runs as the bootstrap process.
