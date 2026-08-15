@@ -27,40 +27,44 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 
 	go handleUpdateClientStatus("service")
 	go handleWebsocket("service")
+	go serviceUpdateLoop()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))
 
-	if err := handleUpdate(); err != nil {
-		_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
-	}
-
-	updateTicker := time.NewTicker(5 * time.Minute)
-	defer updateTicker.Stop()
-
 loop:
-	for {
-		select {
-		case <-updateTicker.C:
-			if err := handleUpdate(); err != nil {
-				_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
-			}
-		case c := <-r:
-			switch c.Cmd {
-			case svc.Interrogate:
-				changes <- c.CurrentStatus
-				// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
-				time.Sleep(100 * time.Millisecond)
-				changes <- c.CurrentStatus
-			case svc.Stop, svc.Shutdown:
-				break loop
-			default:
-				_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
-			}
+	for c := range r {
+		switch c.Cmd {
+		case svc.Interrogate:
+			changes <- c.CurrentStatus
+			// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+			time.Sleep(100 * time.Millisecond)
+			changes <- c.CurrentStatus
+		case svc.Stop, svc.Shutdown:
+			break loop
+		default:
+			_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 		}
 	}
 	changes <- svc.Status{State: svc.StopPending}
 	return
+}
+
+// serviceUpdateLoop runs the auto updater off the control loop, so the service
+// stays responsive to Stop and Interrogate while a check or download runs.
+func serviceUpdateLoop() {
+	if err := handleUpdate(); err != nil {
+		_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+	}
+
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := handleUpdate(); err != nil {
+			_ = elog.Error(1, fmt.Sprintf("auto update failed: %v", err))
+		}
+	}
 }
 
 func runService(name string, isDebug bool) {

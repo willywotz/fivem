@@ -24,3 +24,19 @@ The auto updater runs without any visible effect on the user.
 - The restart uses the `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW` flags.
   `DETACHED_PROCESS` is not used, because Windows ignores `CREATE_NO_WINDOW`
   when it is joined with `DETACHED_PROCESS`.
+
+## Windows service — verified behavior
+
+- `Execute` sends `StartPending`, starts the worker goroutines, then sends
+  `Running`. The auto updater runs in `serviceUpdateLoop`, a goroutine, so the
+  control loop never blocks on a network check or a download. This keeps the
+  service responsive to Stop and Interrogate at all times.
+- The control loop reads only from the request channel `r`. On Stop or
+  Shutdown it sends `StopPending` and returns. The `svc.Run` framework sends
+  `Stopped` after `Execute` returns, so the code does not send it.
+- On a new version, `handleUpdate` calls `os.Exit(1)`. The process ends without
+  the `Stopped` state, so the Service Control Manager sees a failure and the
+  recovery actions restart the service.
+- `eventlog.InstallAsEventCreate` registers the log source at install time.
+  `runService` opens the source with `eventlog.Open` and falls back to a debug
+  logger if the open fails.
