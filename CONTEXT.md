@@ -43,8 +43,15 @@ The auto updater runs without any visible effect on the user.
 
 ## Logging
 
-`failedf` is the one log path. It writes to `elog` (the service event log) when
-the service process set it, else to `elogClient` (the bootstrap event log), else
-to standard error. So the update logs, and all `failedf` logs, land in the
-service event log when the code runs as the service, and in the client event log
-when the code runs as the bootstrap process.
+`logf` (info) and `errorf` (error) are the one log path. Both call `emit`,
+which writes to `elog` (the service event log) when the service process set it,
+else `elogClient` (the bootstrap event log), else standard error. `errorf`
+writes at error level, `logf` at info level. So all logs land in the service
+event log when the code runs as the service, and in the client event log when
+the code runs as the bootstrap process.
+
+The stdlib `log` package, direct `elog`/`elogClient` calls, and `fmt.Print`
+debug output are not used for logging any more; the one exception is the
+`screenshot:<path>` line on standard output, which is protocol output, not a
+log. Per-keystroke trace prints in `keyboard.go` were removed, because they
+would flood the event log.

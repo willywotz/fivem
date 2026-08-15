@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"syscall"
 	"time"
 	"unsafe"
@@ -179,7 +178,7 @@ func sendKeyInput(vkCode uint16, scanCode uint16, flags uint32) {
 	)
 
 	if ret != nInputs {
-		fmt.Printf("Error: SendInput failed to send all inputs. Sent: %d, Expected: %d, Error: %v\n", ret, nInputs, err)
+		errorf("SendInput failed to send all inputs. Sent: %d, Expected: %d, Error: %v", ret, nInputs, err)
 	}
 }
 
@@ -188,13 +187,11 @@ func sendKeyInput(vkCode uint16, scanCode uint16, flags uint32) {
 func PressAndRelease(vkCode uint16) {
 	scanCodeVal, _, err := procMapVirtualKeyW.Call(uintptr(vkCode), uintptr(0)) // 0 means MAPVK_VK_TO_VSC
 	if scanCodeVal == 0 && err != nil {
-		fmt.Printf("Error mapping virtual key: %v\n", err)
+		errorf("Error mapping virtual key: %v", err)
 		return
 	}
 
 	scanCode := uint16(scanCodeVal)
-
-	fmt.Printf("Pressing key with VK_CODE: 0x%X\n", vkCode)
 
 	// Press the key down
 	sendKeyInput(0, scanCode, KEYEVENTF_SCANCODE) // Flags 0 means Key Down
@@ -204,15 +201,12 @@ func PressAndRelease(vkCode uint16) {
 
 	// Release the key
 	sendKeyInput(0, scanCode, KEYEVENTF_SCANCODE|KEYEVENTF_KEYUP) // KEYEVENTF_KEYUP for Key Up
-	fmt.Printf("Released key with VK_CODE: 0x%X\n", vkCode)
 }
 
 // PressAndReleaseChar simulates typing a single character.
 // This uses KEYEVENTF_UNICODE flag, which is generally simpler for characters
 // as it doesn't require mapping to virtual key codes or handling Shift state.
 func PressAndReleaseChar(char rune) {
-	fmt.Printf("Typing character: '%c' (Unicode: %U)\n", char, char)
-
 	// Key Down with UNICODE flag (Vk is 0, Scan is the Unicode char)
 	sendKeyInput(0, uint16(char), KEYEVENTF_UNICODE)
 

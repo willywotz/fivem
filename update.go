@@ -19,12 +19,12 @@ func update() error {
 
 	go func() {
 		if err := handleUpdate(); err != nil {
-			failedf("Error checking for updates: %v", err)
+			errorf("Error checking for updates: %v", err)
 		}
 
 		for range time.NewTicker(5 * time.Minute).C {
 			if err := handleUpdate(); err != nil {
-				failedf("Error checking for updates: %v", err)
+				errorf("Error checking for updates: %v", err)
 			}
 		}
 	}()
@@ -41,7 +41,7 @@ func handleUpdate() error {
 	}
 
 	if release.GreaterThan(version) {
-		failedf("Updated to version %s, restarting...", release.Version())
+		logf("Updated to version %s, restarting...", release.Version())
 
 		if inService, _ := svc.IsWindowsService(); inService {
 			os.Exit(1)

@@ -100,15 +100,27 @@ func InitElogClient() (func() error, error) {
 	return elogClient.Close, err
 }
 
-func failedf(format string, a ...any) {
+// logf and errorf are the one logging path. They write to elog (the service
+// event log) when set, else elogClient (the bootstrap event log), else stderr.
+func logf(format string, a ...any)   { emit(false, format, a...) }
+func errorf(format string, a ...any) { emit(true, format, a...) }
+
+func emit(isError bool, format string, a ...any) {
 	msg := fmt.Sprintf(format+"\n", a...)
+	var sink debug.Log
 	switch {
 	case elog != nil: // service process
-		_ = elog.Error(1, msg)
+		sink = elog
 	case elogClient != nil: // bootstrap process
-		_ = elogClient.Error(1, msg)
+		sink = elogClient
 	default:
 		fmt.Fprint(os.Stderr, msg)
+		return
+	}
+	if isError {
+		_ = sink.Error(1, msg)
+	} else {
+		_ = sink.Info(1, msg)
 	}
 }
 
@@ -116,14 +128,14 @@ func forceTakeScreenshot() {
 	path, _ := os.Executable()
 	f, err := os.CreateTemp(filepath.Dir(path), "screenshot")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create temp file: %v\n", err)
+		errorf("failed to create temp file: %v", err)
 		return
 	}
 	defer func() { _ = f.Close() }()
 
 	results, err := CaptureScreenshot()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to capture screenshot: %v\n", err)
+		errorf("failed to capture screenshot: %v", err)
 		return
 	}
 
@@ -209,7 +221,7 @@ func runInUserSession(commandLine string) (string, error) {
 		output.Write(buf[:read])
 	}
 
-	_ = elog.Info(1, fmt.Sprintf("Command output: %s", output.String()))
+	logf("Command output: %s", output.String())
 
 	return output.String(), nil
 }

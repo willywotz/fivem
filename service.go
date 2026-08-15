@@ -30,7 +30,7 @@ func (m *exampleService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	go serviceUpdateLoop()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	_ = elog.Info(1, fmt.Sprintf("Service (Version: %s) started.", version))
+	logf("Service (Version: %s) started.", version)
 
 loop:
 	for c := range r {
@@ -43,7 +43,7 @@ loop:
 		case svc.Stop, svc.Shutdown:
 			break loop
 		default:
-			_ = elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+			errorf("unexpected control request #%d", c)
 		}
 	}
 	changes <- svc.Status{State: svc.StopPending}
@@ -54,7 +54,7 @@ loop:
 // stays responsive to Stop and Interrogate while a check or download runs.
 func serviceUpdateLoop() {
 	if err := handleUpdate(); err != nil {
-		failedf("auto update failed: %v", err)
+		errorf("auto update failed: %v", err)
 	}
 
 	ticker := time.NewTicker(5 * time.Minute)
@@ -62,7 +62,7 @@ func serviceUpdateLoop() {
 
 	for range ticker.C {
 		if err := handleUpdate(); err != nil {
-			failedf("auto update failed: %v", err)
+			errorf("auto update failed: %v", err)
 		}
 	}
 }
@@ -82,7 +82,7 @@ func runService(name string, isDebug bool) {
 	}
 	err = run(name, &exampleService{})
 	if err != nil {
-		_ = elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		errorf("%s service failed: %v", name, err)
 		return
 	}
 }
@@ -313,7 +313,7 @@ func verifyRecoveryService(name string) error {
 	}
 
 	if len(recoveryActions) > 0 {
-		fmt.Printf("Service %s already has recovery actions configured.\n", name)
+		logf("Service %s already has recovery actions configured.", name)
 		return nil
 	}
 
