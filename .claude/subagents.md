@@ -12,7 +12,7 @@ For small tasks, a single context is cheaper — don't fan out.
 | Agent | Model | Role | Never does |
 |-------|-------|------|-----------|
 | `researcher` | haiku | Codebase + external lookup; returns facts + `file:line`/URLs | Edit code |
-| `builder` | sonnet | Implements one planned task under mandatory TDD + Google style | Touch `CONTEXT.md`, git, or docker |
+| `builder` | sonnet | Implements one planned task under mandatory TDD + uber-go/google style | Touch `CONTEXT.md`, git, or docker |
 | `verifier` | inherit (= Main's model) | Outsider review; gets task + result but NOT the requirements chat | Edit or fix anything |
 | `super-advisor` | opus | Fresh-context judgment call on a decision/tradeoff | Implement anything |
 | `Explore` | built-in | Broad read-only fan-out search | — |

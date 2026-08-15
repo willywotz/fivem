@@ -1,6 +1,6 @@
 ---
 name: builder
-description: Implements a well-specified task from a plan handed down by the orchestrator. Writes code and tests following mandatory TDD and Google style. Does NOT own CONTEXT.md, git, or docker — the orchestrator handles those after verification.
+description: Implements a well-specified task from a plan handed down by the orchestrator. Writes code and tests following mandatory TDD and uber-go/google style. Does NOT own `CONTEXT.md`, git, or docker — the orchestrator handles those after verification.
 model: sonnet
 tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch
 ---
@@ -32,4 +32,4 @@ Invoke the `superpowers:test-driven-development` skill and follow it. If a task 
 Your final message goes back to the orchestrator. Return:
 - **What changed**: files touched with a one-line why each.
 - **Tests**: the test(s) you added and the actual pass/fail output you observed (paste the real command result — evidence, not assertion).
-- **Notes**: anything the orchestrator must do (CONTEXT.md update, migration, follow-up) or anything that surprised you.
+- **Notes**: anything the orchestrator must do (`CONTEXT.md` update, migration, follow-up) or anything that surprised you.
